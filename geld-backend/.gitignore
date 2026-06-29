@@ -1,0 +1,15 @@
+# Entornos virtuales
+venv/
+env/
+
+# Variables de entorno (¡Crítico para seguridad!)
+.env
+
+# Archivos compilados de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Archivos de VS Code
+.vscode/
