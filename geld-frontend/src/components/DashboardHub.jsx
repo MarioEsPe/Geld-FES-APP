@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Patrimonio from './Patrimonio';
 import TransaccionForm from './TransaccionForm';
+import HistorialLista from './HistorialLista';
 
 export default function DashboardHub() {
   const [vistaActiva, setVistaActiva] = useState('resumen');
@@ -23,7 +24,9 @@ export default function DashboardHub() {
 
       {/* 2. Área Scrolleable Principal */}
       <main className="flex-1 overflow-y-auto px-4 pt-6 pb-6 bg-slate-50">
-        {vistaActiva === 'resumen' ? (
+        
+        {/* VISTA 1: Resumen */}
+        {vistaActiva === 'resumen' && (
           <div className="space-y-4">
             <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
               <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
@@ -43,7 +46,10 @@ export default function DashboardHub() {
               </button>
             </div>
           </div>
-        ) : (
+        )}
+
+        {/* VISTA 2: Captura (Formulario) */}
+        {vistaActiva === 'nueva' && (
           <div className="space-y-2">
             <button 
               onClick={() => setVistaActiva('resumen')}
@@ -54,11 +60,29 @@ export default function DashboardHub() {
             <TransaccionForm />
           </div>
         )}
+
+        {/* VISTA 3: Historial */}
+        {vistaActiva === 'historial' && (
+          <div className="space-y-2">
+            <button 
+              onClick={() => setVistaActiva('resumen')}
+              className="text-xs text-slate-500 font-medium flex items-center gap-1 hover:text-slate-800 transition-colors mb-2"
+            >
+              ← Volver al Patrimonio
+            </button>
+            <HistorialLista />
+          </div>
+        )}
+
       </main>
 
       {/* 3. Menú Inferior (En lugar de fixed, vive al final del flex de manera natural) */}
       <nav className="bg-white border-t border-slate-200 shadow-[0_-4px_15px_rgba(0,0,0,0.05)] py-2 px-6 flex-shrink-0 z-20">
-        <div className="grid grid-cols-2 gap-4">
+        
+        {/* Cambiamos a grid-cols-3 para acomodar los tres botones */}
+        <div className="grid grid-cols-3 gap-2">
+          
+          {/* Botón Resumen */}
           <button
             type="button"
             onClick={() => setVistaActiva('resumen')}
@@ -71,6 +95,7 @@ export default function DashboardHub() {
             <span className="text-xs">📊 Resumen</span>
           </button>
 
+          {/* Botón Captura */}
           <button
             type="button"
             onClick={() => setVistaActiva('nueva')}
@@ -82,6 +107,20 @@ export default function DashboardHub() {
           >
             <span className="text-xs">➕ Captura</span>
           </button>
+
+          {/* Botón Historial */}
+          <button
+            type="button"
+            onClick={() => setVistaActiva('historial')}
+            className={`flex flex-col items-center justify-center py-2 rounded-xl transition-all ${
+              vistaActiva === 'historial'
+                ? 'text-emerald-600 font-bold bg-emerald-50'
+                : 'text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            <span className="text-xs">📋 Historial</span>
+          </button>
+
         </div>
       </nav>
       
