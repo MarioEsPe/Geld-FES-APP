@@ -1,0 +1,22 @@
+---
+import '../styles/global.css';
+
+const { title = "GELD FES" } = Astro.props;
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>{title}</title>
+  </head>
+  <body class="bg-slate-200 text-slate-900 font-sans antialiased min-h-screen flex justify-center m-0 p-0">
+    
+    <div class="w-full max-w-md bg-slate-50 min-h-screen shadow-2xl relative flex flex-col overflow-hidden">
+      <slot />
+    </div>
+
+  </body>
+</html>

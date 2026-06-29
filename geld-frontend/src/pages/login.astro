@@ -1,0 +1,11 @@
+---
+import Layout from '../layouts/Layout.astro';
+import LoginForm from '../components/LoginForm.jsx';
+---
+
+<Layout title="Acceso GELD FES">
+  <div class="flex flex-col items-center justify-center h-[70vh]">
+    <h2 class="text-2xl font-bold text-slate-800 mb-6">Bienvenido a GELD</h2>
+    <LoginForm client:load />
+  </div>
+</Layout>

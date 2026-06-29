@@ -1,0 +1,11 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import TransaccionForm from '../../components/TransaccionForm.jsx';
+---
+
+<Layout title="Nueva Transacción">
+  <div class="mt-6">
+    <h2 class="text-xl font-bold mb-4">Registrar Movimiento</h2>
+    <TransaccionForm client:load />
+  </div>
+</Layout>
