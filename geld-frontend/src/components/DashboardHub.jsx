@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Patrimonio from './Patrimonio';
 import TransaccionForm from './TransaccionForm';
 import HistorialLista from './HistorialLista';
+import GraficaGastos from './GraficaGastos';
 
 export default function DashboardHub() {
   const [vistaActiva, setVistaActiva] = useState('resumen');
@@ -47,6 +48,11 @@ export default function DashboardHub() {
               </h3>
               <Patrimonio />
             </div>
+
+            {/* NUEVO: Aquí insertamos la gráfica analítica */}
+            <GraficaGastos />
+
+            <div className="bg-slate-800 text-white rounded-2xl p-6 shadow-sm mt-4"></div>
             
             <div className="bg-slate-800 text-white rounded-2xl p-6 shadow-sm">
               <h4 className="font-bold text-base mb-1">¿Registrar movimiento?</h4>
