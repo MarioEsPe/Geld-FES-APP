@@ -13,12 +13,25 @@ export default function DashboardHub() {
       {/* 1. Header (flex-shrink-0 evita que se aplaste) */}
       <header className="bg-white border-b border-slate-200 py-4 px-6 flex-shrink-0 z-10 shadow-sm">
         <div className="flex justify-between items-center">
-          <h1 className="text-xl font-black text-slate-800 tracking-tight">
-            GELD <span className="text-emerald-600 font-medium">FES</span>
-          </h1>
-          <span className="bg-slate-100 text-slate-600 text-xs font-semibold px-2.5 py-1 rounded-full">
-            Operativo
-          </span>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-black text-slate-800 tracking-tight">
+              GELD <span className="text-emerald-600 font-medium">FES</span>
+            </h1>
+            <span className="bg-slate-100 text-slate-600 text-xs font-semibold px-2.5 py-1 rounded-full hidden sm:inline-block">
+              Operativo
+            </span>
+          </div>
+          
+          {/* NUEVO: Botón de Cerrar Sesión */}
+          <button 
+            onClick={() => {
+              localStorage.removeItem('geld_token');
+              window.location.href = '/login';
+            }}
+            className="text-xs font-bold text-slate-400 hover:text-red-600 transition-colors bg-slate-50 hover:bg-red-50 px-3 py-1.5 rounded-lg"
+          >
+            Salir
+          </button>
         </div>
       </header>
 
