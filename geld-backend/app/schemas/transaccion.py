@@ -68,4 +68,8 @@ class PaginatedTransacciones(BaseModel):
     limit: int
     data: List[TransaccionRead]
     
-    model_config = ConfigDict(from_attributes=True)    
+    model_config = ConfigDict(from_attributes=True)
+    
+class GastoPorCategoria(BaseModel):
+    nombre: str
+    total: Decimal        

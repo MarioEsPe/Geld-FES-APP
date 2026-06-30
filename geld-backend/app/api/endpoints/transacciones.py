@@ -5,14 +5,15 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
 from decimal import Decimal
 from typing import Dict
+from sqlalchemy import select, func
 
 from app.db.database import get_session
-from app.schemas.transaccion import TransaccionCreate, TransaccionRead, PaginatedTransacciones
+from app.schemas.transaccion import TransaccionCreate, TransaccionRead, PaginatedTransacciones, GastoPorCategoria
 from app.crud import crud_transaccion
 from app.models.domain import TipoMovimiento
 
 from app.api.deps import obtener_usuario_actual
-from app.models.domain import Usuario
+from app.models.domain import Usuario, Transaccion, Categoria
 
 router = APIRouter()
 
@@ -44,6 +45,29 @@ def obtener_saldo_actual(
         raise HTTPException(status_code=404, detail="Cuenta no encontrada")
     
     return {"saldo_actual": saldo}
+
+@router.get("/analitica/gastos", response_model=list[GastoPorCategoria])
+def obtener_analitica_gastos(
+    session: Session = Depends(get_session),
+    usuario_actual = Depends(obtener_usuario_actual)
+):
+    """
+    Agrupa todos los movimientos de tipo CARGO por categoría 
+    y devuelve la suma total por cada una.
+    """
+    consulta = (
+        select(
+            Categoria.nombre_categoria.label("nombre"),
+            func.sum(Transaccion.monto).label("total")
+        )
+        .join(Categoria, Transaccion.categoria_id == Categoria.id)
+        .where(Transaccion.tipo == "CARGO")
+        .group_by(Categoria.nombre_categoria)
+        .order_by(func.sum(Transaccion.monto).desc())
+    )
+    
+    resultados = session.exec(consulta).all()
+    return [{"nombre": row.nombre, "total": row.total} for row in resultados]
 
 @router.get("/", response_model=PaginatedTransacciones)
 def listar_transacciones(
