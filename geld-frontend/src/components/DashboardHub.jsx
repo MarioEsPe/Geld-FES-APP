@@ -8,11 +8,11 @@ export default function DashboardHub() {
   const [vistaActiva, setVistaActiva] = useState('resumen');
 
   return (
-    // flex-1 hace que llene todo el Layout de Astro
-    <div className="flex flex-col flex-1 h-full w-full">
+    // 1. Usamos h-[100dvh] para tomar el 100% de la pantalla del celular y ocultamos desbordamientos generales
+    <div className="flex flex-col h-[100dvh] w-full overflow-hidden bg-slate-50 relative">
       
-      {/* 1. Header (flex-shrink-0 evita que se aplaste) */}
-      <header className="bg-white border-b border-slate-200 py-4 px-6 flex-shrink-0 z-10 shadow-sm">
+      {/* HEADER: Fijo arriba */}
+      <header className="bg-white border-b border-slate-200 py-4 px-6 flex-shrink-0 z-10 shadow-sm relative">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-black text-slate-800 tracking-tight">
@@ -23,7 +23,6 @@ export default function DashboardHub() {
             </span>
           </div>
           
-          {/* NUEVO: Botón de Cerrar Sesión */}
           <button 
             onClick={() => {
               localStorage.removeItem('geld_token');
@@ -36,10 +35,9 @@ export default function DashboardHub() {
         </div>
       </header>
 
-      {/* 2. Área Scrolleable Principal */}
-      <main className="flex-1 overflow-y-auto px-4 pt-6 pb-6 bg-slate-50">
+      {/* MAIN: Área Scrolleable Única */}
+      <main className="flex-1 overflow-y-auto px-4 pt-6 pb-24">
         
-        {/* VISTA 1: Resumen */}
         {vistaActiva === 'resumen' && (
           <div className="space-y-4">
             <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
@@ -49,17 +47,14 @@ export default function DashboardHub() {
               <Patrimonio />
             </div>
 
-            {/* NUEVO: Aquí insertamos la gráfica analítica */}
             <GraficaGastos />
-
-            <div className="bg-slate-800 text-white rounded-2xl p-6 shadow-sm mt-4"></div>
             
-            <div className="bg-slate-800 text-white rounded-2xl p-6 shadow-sm">
+            <div className="bg-slate-800 text-white rounded-2xl p-6 shadow-sm mt-4">
               <h4 className="font-bold text-base mb-1">¿Registrar movimiento?</h4>
               <p className="text-slate-400 text-xs mb-4">Añade tus ingresos o gastos del día.</p>
               <button 
                 onClick={() => setVistaActiva('nueva')}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors shadow"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors shadow w-full"
               >
                 + Capturar Ahora
               </button>
@@ -67,7 +62,6 @@ export default function DashboardHub() {
           </div>
         )}
 
-        {/* VISTA 2: Captura (Formulario) */}
         {vistaActiva === 'nueva' && (
           <div className="space-y-2">
             <button 
@@ -80,26 +74,33 @@ export default function DashboardHub() {
           </div>
         )}
 
-        {/* VISTA 3: Historial */}
         {vistaActiva === 'historial' && (
-          <div className="space-y-2">
+          <div className="space-y-2 relative">
             <button 
               onClick={() => setVistaActiva('resumen')}
               className="text-xs text-slate-500 font-medium flex items-center gap-1 hover:text-slate-800 transition-colors mb-2"
             >
               ← Volver al Patrimonio
             </button>
+            
             <HistorialLista />
+
+            {/* BOTÓN FLOTANTE (+): Ubicado en la esquina inferior derecha sobre la lista */}
+            <button
+              onClick={() => setVistaActiva('nueva')}
+              className="fixed bottom-20 right-6 w-14 h-14 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full flex items-center justify-center text-3xl font-light shadow-xl transition-all hover:scale-105 active:scale-95 z-40 border border-emerald-500 animate-fade-in"
+              title="Agregar transacción"
+            >
+              +
+            </button>
           </div>
         )}
 
       </main>
 
-      {/* 3. Menú Inferior (En lugar de fixed, vive al final del flex de manera natural) */}
-      <nav className="bg-white border-t border-slate-200 shadow-[0_-4px_15px_rgba(0,0,0,0.05)] py-2 px-6 flex-shrink-0 z-20">
-        
-        {/* Cambiamos a grid-cols-3 para acomodar los tres botones */}
-        <div className="grid grid-cols-3 gap-2">
+      {/* NAV: Reducido de 3 a 2 columnas para Resumen e Historial */}
+      <nav className="fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 shadow-[0_-4px_15px_rgba(0,0,0,0.05)] py-2 px-6 z-50">
+        <div className="grid grid-cols-2 gap-4 max-w-lg mx-auto">
           
           {/* Botón Resumen */}
           <button
@@ -112,19 +113,6 @@ export default function DashboardHub() {
             }`}
           >
             <span className="text-xs">📊 Resumen</span>
-          </button>
-
-          {/* Botón Captura */}
-          <button
-            type="button"
-            onClick={() => setVistaActiva('nueva')}
-            className={`flex flex-col items-center justify-center py-2 rounded-xl transition-all ${
-              vistaActiva === 'nueva'
-                ? 'text-emerald-600 font-bold bg-emerald-50'
-                : 'text-slate-400 hover:text-slate-600'
-            }`}
-          >
-            <span className="text-xs">➕ Captura</span>
           </button>
 
           {/* Botón Historial */}
