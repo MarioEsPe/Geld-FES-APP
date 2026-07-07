@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../utils/api';
 
-export default function TransaccionForm() {
+export default function TransaccionForm({ transaccionAEditar, onGuardadoExitoso }) {
   const [cuentas, setCuentas] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -11,13 +11,14 @@ export default function TransaccionForm() {
   const [formData, setFormData] = useState({
     tipo: 'Gasto',
     monto: '',
-    concepto: '', // Para el usuario es "Concepto", para el backend será "descripcion"
+    concepto: '',
     id_cuenta: '',
     id_categoria: '',
     id_cuenta_destino: '', 
     fecha: new Date().toISOString().split('T')[0] 
   });
 
+  // EFECTO 1: Cargar catálogos (se mantiene igual)
   useEffect(() => {
     const fetchCatalogos = async () => {
       try {
@@ -35,6 +36,27 @@ export default function TransaccionForm() {
     fetchCatalogos();
   }, []);
 
+  // NUEVO EFECTO 2: Precargar datos si estamos en Modo Edición
+  useEffect(() => {
+    if (transaccionAEditar) {
+      // Traducir el enum de PostgreSQL al texto de la UI
+      let tipoUI = 'Gasto';
+      if (transaccionAEditar.tipo === 'ABONO') tipoUI = 'Ingreso';
+      if (transaccionAEditar.tipo === 'TRANSFERENCIA') tipoUI = 'Transferencia';
+
+      setFormData({
+        tipo: tipoUI,
+        monto: transaccionAEditar.monto || '',
+        concepto: transaccionAEditar.descripcion || '',
+        id_cuenta: transaccionAEditar.cuenta_id || '',
+        id_categoria: transaccionAEditar.categoria_id || '',
+        id_cuenta_destino: transaccionAEditar.cuenta_destino_id || '',
+        // Cortar la hora si el backend devuelve un timestamp completo
+        fecha: transaccionAEditar.fecha ? transaccionAEditar.fecha.split('T')[0] : new Date().toISOString().split('T')[0]
+      });
+    }
+  }, [transaccionAEditar]);
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -46,30 +68,34 @@ export default function TransaccionForm() {
     setSuccess(false);
 
     try {
-      // 1. Traducimos el tipo al ENUM exacto de PostgreSQL
       let tipoEnum = 'CARGO'; 
       if (formData.tipo === 'Ingreso') tipoEnum = 'ABONO';
       if (formData.tipo === 'Transferencia') tipoEnum = 'TRANSFERENCIA';
 
-      // 2. Construimos el Payload con los nombres EXACTOS que exige tu Backend
       const payload = {
         cuenta_id: String(formData.id_cuenta),
         monto: parseFloat(formData.monto),
         tipo: tipoEnum,
         fecha: formData.fecha,
-        tipo_de_cambio: 1.0, // Campo obligatorio en tu SQL.txt
-        descripcion: formData.concepto || null, // Traducimos 'concepto' a 'descripcion'
+        tipo_de_cambio: 1.0,
+        descripcion: formData.concepto || null,
       };
 
-      // Dependiendo del tipo, agregamos la categoría o la cuenta destino
       if (formData.tipo === 'Transferencia') {
         payload.cuenta_destino_id = String(formData.id_cuenta_destino);
       } else {
         payload.categoria_id = String(formData.id_categoria);
       }
 
-      const response = await apiFetch('http://localhost:8000/transacciones/', {
-        method: 'POST',
+      // LÓGICA DINÁMICA: Elegir endpoint y método según el modo
+      const isEditing = !!transaccionAEditar;
+      const endpoint = isEditing 
+        ? `http://localhost:8000/transacciones/${transaccionAEditar.id}`
+        : 'http://localhost:8000/transacciones/';
+      const httpMethod = isEditing ? 'PUT' : 'POST';
+
+      const response = await apiFetch(endpoint, {
+        method: httpMethod,
         body: JSON.stringify(payload),
       });
 
@@ -80,19 +106,24 @@ export default function TransaccionForm() {
 
       setSuccess(true);
       
-      // Reiniciar formulario limpiando valores
-      setFormData({
-        ...formData,
-        monto: '',
-        concepto: '',
-        id_cuenta: '',
-        id_categoria: '',
-        id_cuenta_destino: ''
-      });
+      // Si todo sale bien, ejecutamos la función de éxito (si nos la pasaron)
+      if (onGuardadoExitoso) {
+        setTimeout(() => onGuardadoExitoso(), 1000); // 1 segundo para que el usuario lea "Éxito"
+      } else if (!isEditing) {
+        // Solo limpiamos si es una inserción nueva y no hay redirección
+        setFormData({
+          ...formData,
+          monto: '',
+          concepto: '',
+          id_cuenta: '',
+          id_categoria: '',
+          id_cuenta_destino: ''
+        });
+      }
 
     } catch (err) {
       console.error(err);
-      setError(err.message || 'Ocurrió un error al registrar la transacción.');
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -100,7 +131,10 @@ export default function TransaccionForm() {
 
   return (
     <div className="max-w-md mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mt-4 mb-20">
-      <h2 className="text-2xl font-bold text-slate-800 mb-6">Nueva Transacción</h2>
+      {/* Título dinámico */}
+      <h2 className="text-2xl font-bold text-slate-800 mb-6">
+        {transaccionAEditar ? 'Editar Movimiento' : 'Nueva Transacción'}
+      </h2>
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm break-words">
@@ -109,7 +143,7 @@ export default function TransaccionForm() {
       )}
       {success && (
         <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-lg mb-4 text-sm">
-          ¡Movimiento registrado con éxito!
+          {transaccionAEditar ? '¡Cambios guardados con éxito!' : '¡Movimiento registrado con éxito!'}
         </div>
       )}
 
@@ -229,6 +263,7 @@ export default function TransaccionForm() {
           />
         </div>
 
+        {/* Botón dinámico */}
         <button
           type="submit"
           disabled={loading}
@@ -243,7 +278,7 @@ export default function TransaccionForm() {
               Guardando...
             </span>
           ) : (
-            'Registrar Movimiento'
+            transaccionAEditar ? 'Guardar Cambios' : 'Registrar Movimiento'
           )}
         </button>
 

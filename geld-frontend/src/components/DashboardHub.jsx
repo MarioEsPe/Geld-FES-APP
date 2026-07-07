@@ -61,7 +61,10 @@ export default function DashboardHub() {
               <h4 className="font-bold text-base mb-1">¿Registrar movimiento?</h4>
               <p className="text-slate-400 text-xs mb-4">Añade tus ingresos o gastos del día.</p>
               <button 
-                onClick={() => setVistaActiva('nueva')}
+                onClick={() => {
+                  setTransaccionActiva(null);
+                  setVistaActiva('nueva');
+                }}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors shadow w-full"
               >
                 + Capturar Ahora
@@ -73,12 +76,22 @@ export default function DashboardHub() {
         {vistaActiva === 'nueva' && (
           <div className="space-y-2">
             <button 
-              onClick={() => setVistaActiva('resumen')}
+              onClick={() => {
+                setVistaActiva('resumen');
+                setTransaccionActiva(null); // Limpiar si cancelas
+              }}
               className="text-xs text-slate-500 font-medium flex items-center gap-1 hover:text-slate-800 transition-colors mb-2"
             >
               ← Volver al Patrimonio
             </button>
-            <TransaccionForm />
+            {/* AQUÍ INYECTAMOS LA PROP */}
+            <TransaccionForm 
+              transaccionAEditar={transaccionActiva} 
+              onGuardadoExitoso={() => {
+                setTransaccionActiva(null); // Limpiamos tras guardar
+                setVistaActiva('historial'); // O pcional: mandarlo al historial para ver su cambio
+              }}
+            />
           </div>
         )}
 
@@ -95,7 +108,10 @@ export default function DashboardHub() {
             <HistorialLista onTransaccionClick={handleTransaccionClick} />
 
             <button
-              onClick={() => setVistaActiva('nueva')}
+              onClick={() => {
+                setTransaccionActiva(null);
+                setVistaActiva('nueva');
+              }}
               className="fixed bottom-20 right-6 w-14 h-14 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full flex items-center justify-center text-3xl font-light shadow-xl transition-all hover:scale-105 active:scale-95 z-40 border border-emerald-500 animate-fade-in"
               title="Agregar transacción"
             >
@@ -128,7 +144,10 @@ export default function DashboardHub() {
           
           <button
             type="button"
-            onClick={() => setVistaActiva('resumen')}
+            onClick={() => {
+              setTransaccionActiva(null);
+              setVistaActiva('resumen');
+            }}
             className={`flex flex-col items-center justify-center py-2 rounded-xl transition-all ${
               vistaActiva === 'resumen'
                 ? 'text-emerald-600 font-bold bg-emerald-50'
