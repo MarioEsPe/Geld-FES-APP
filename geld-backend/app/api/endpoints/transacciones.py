@@ -8,7 +8,7 @@ from typing import Dict
 from sqlalchemy import select, func
 
 from app.db.database import get_session
-from app.schemas.transaccion import TransaccionCreate, TransaccionRead, PaginatedTransacciones, GastoPorCategoria
+from app.schemas.transaccion import TransaccionCreate, TransaccionRead, PaginatedTransacciones, GastoPorCategoria, TransaccionUpdate
 from app.crud import crud_transaccion
 from app.models.domain import TipoMovimiento
 
@@ -102,3 +102,44 @@ def listar_transacciones(
         "limit": limit,
         "data": registros
     }
+    
+@router.delete("/{transaccion_id}")
+def eliminar_transaccion(
+    transaccion_id: str, 
+    session: Session = Depends(get_session),
+    usuario_actual = Depends(obtener_usuario_actual)
+):
+    """Elimina un movimiento histórico. Los saldos se recalcularán automáticamente."""
+    transaccion = session.get(Transaccion, transaccion_id)
+    if not transaccion:
+        raise HTTPException(status_code=404, detail="Movimiento no encontrado")
+    
+    session.delete(transaccion)
+    session.commit()
+    return {"mensaje": "Transacción eliminada correctamente"}
+
+
+@router.put("/{transaccion_id}")
+def actualizar_transaccion(
+    transaccion_id: str,
+    datos_actualizados: TransaccionUpdate,
+    session: Session = Depends(get_session),
+    usuario_actual = Depends(obtener_usuario_actual)
+):
+    """Actualiza uno o varios campos de un movimiento existente."""
+    transaccion = session.get(Transaccion, transaccion_id)
+    if not transaccion:
+        raise HTTPException(status_code=404, detail="Movimiento no encontrado")
+    
+    # model_dump(exclude_unset=True) asegura que solo actualicemos lo que el usuario envió
+    datos_dict = datos_actualizados.model_dump(exclude_unset=True)
+    for key, value in datos_dict.items():
+        setattr(transaccion, key, value)
+        
+    session.add(transaccion)
+    session.commit()
+    session.refresh(transaccion)
+    
+    return transaccion
+
+    

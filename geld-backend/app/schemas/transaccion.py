@@ -5,7 +5,7 @@ from datetime import date
 from typing import Optional
 from uuid import UUID
 from app.models.domain import TipoMovimiento
-from typing import List
+from typing import List, Optional
 
 class TransaccionCreate(BaseModel):
     fecha: date
@@ -72,4 +72,13 @@ class PaginatedTransacciones(BaseModel):
     
 class GastoPorCategoria(BaseModel):
     nombre: str
-    total: Decimal        
+    total: Decimal
+    
+class TransaccionUpdate(BaseModel):
+    monto: Optional[Decimal] = None
+    tipo: Optional[str] = None
+    categoria_id: Optional[str] = None
+    cuenta_id: Optional[str] = None
+    cuenta_destino_id: Optional[str] = None
+    fecha: Optional[date] = None
+    descripcion: Optional[str] = None            
