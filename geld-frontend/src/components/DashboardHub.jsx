@@ -3,15 +3,23 @@ import Patrimonio from './Patrimonio';
 import TransaccionForm from './TransaccionForm';
 import HistorialLista from './HistorialLista';
 import GraficaGastos from './GraficaGastos';
+import TransaccionDetalle from './TransaccionDetalle';
 
 export default function DashboardHub() {
   const [vistaActiva, setVistaActiva] = useState('resumen');
+  // NUEVO: Estado para saber qué transacción se seleccionó
+  const [transaccionActiva, setTransaccionActiva] = useState(null);
+
+  // NUEVA: Función que se dispara al hacer clic en un elemento del historial
+  const handleTransaccionClick = (tx) => {
+    setTransaccionActiva(tx);
+    setVistaActiva('detalle');
+  };
 
   return (
-    // 1. Usamos h-[100dvh] para tomar el 100% de la pantalla del celular y ocultamos desbordamientos generales
     <div className="flex flex-col h-[100dvh] w-full overflow-hidden bg-slate-50 relative">
       
-      {/* HEADER: Fijo arriba */}
+      {/* HEADER */}
       <header className="bg-white border-b border-slate-200 py-4 px-6 flex-shrink-0 z-10 shadow-sm relative">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2">
@@ -35,7 +43,7 @@ export default function DashboardHub() {
         </div>
       </header>
 
-      {/* MAIN: Área Scrolleable Única */}
+      {/* MAIN */}
       <main className="flex-1 overflow-y-auto px-4 pt-6 pb-24">
         
         {vistaActiva === 'resumen' && (
@@ -83,9 +91,9 @@ export default function DashboardHub() {
               ← Volver al Patrimonio
             </button>
             
-            <HistorialLista />
+            {/* NUEVO: Pasamos la función al componente hijo */}
+            <HistorialLista onTransaccionClick={handleTransaccionClick} />
 
-            {/* BOTÓN FLOTANTE (+): Ubicado en la esquina inferior derecha sobre la lista */}
             <button
               onClick={() => setVistaActiva('nueva')}
               className="fixed bottom-20 right-6 w-14 h-14 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full flex items-center justify-center text-3xl font-light shadow-xl transition-all hover:scale-105 active:scale-95 z-40 border border-emerald-500 animate-fade-in"
@@ -96,13 +104,28 @@ export default function DashboardHub() {
           </div>
         )}
 
+        {/* VISTA 3: DETALLE DE TRANSACCIÓN */}
+     {vistaActiva === 'detalle' && transaccionActiva && (
+       <TransaccionDetalle 
+         transaccion={transaccionActiva}
+         onRegresar={() => setVistaActiva('historial')}
+         onTransaccionEliminada={() => {
+           setTransaccionActiva(null);
+           setVistaActiva('historial'); // Al borrar, regresa al historial
+         }}
+         onEditarClick={() => {
+           // Por ahora lo mandamos al formulario común, en lo que pre-poblamos los datos
+           setVistaActiva('nueva');
+         }}
+       />
+     )}
+
       </main>
 
-      {/* NAV: Reducido de 3 a 2 columnas para Resumen e Historial */}
+      {/* NAV */}
       <nav className="fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 shadow-[0_-4px_15px_rgba(0,0,0,0.05)] py-2 px-6 z-50">
         <div className="grid grid-cols-2 gap-4 max-w-lg mx-auto">
           
-          {/* Botón Resumen */}
           <button
             type="button"
             onClick={() => setVistaActiva('resumen')}
@@ -115,12 +138,12 @@ export default function DashboardHub() {
             <span className="text-xs">📊 Resumen</span>
           </button>
 
-          {/* Botón Historial */}
+          {/* Hacemos que Historial se quede marcado en verde si estamos en la vista de detalle */}
           <button
             type="button"
             onClick={() => setVistaActiva('historial')}
             className={`flex flex-col items-center justify-center py-2 rounded-xl transition-all ${
-              vistaActiva === 'historial'
+              vistaActiva === 'historial' || vistaActiva === 'detalle'
                 ? 'text-emerald-600 font-bold bg-emerald-50'
                 : 'text-slate-400 hover:text-slate-600'
             }`}

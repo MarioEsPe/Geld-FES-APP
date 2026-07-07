@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../utils/api';
 
-export default function HistorialLista() {
+export default function HistorialLista({ onTransaccionClick }) { // <-- Prop nueva
   const [transacciones, setTransacciones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -10,12 +10,10 @@ export default function HistorialLista() {
     const fetchHistorial = async () => {
       try {
         setLoading(true);
-        // Consultamos el endpoint; por defecto trae 50 registros ordenados por fecha descendente
         const response = await apiFetch('http://localhost:8000/transacciones/');
         if (!response.ok) throw new Error('Error al cargar el historial');
         
         const json = await response.json();
-        // El backend devuelve { total_registros, skip, limit, data: [...] }
         setTransacciones(json.data);
       } catch (err) {
         setError(err.message);
@@ -58,9 +56,13 @@ export default function HistorialLista() {
             const isTransferencia = tx.tipo === 'TRANSFERENCIA';
             
             return (
-              <div key={tx.id} className="p-4 flex justify-between items-center hover:bg-slate-50 transition-colors">
+              // NUEVO: Agregamos onClick y cursor-pointer para que sea un "botón"
+              <div 
+                key={tx.id} 
+                onClick={() => onTransaccionClick && onTransaccionClick(tx)}
+                className="p-4 flex justify-between items-center hover:bg-slate-50 transition-colors cursor-pointer active:bg-slate-100"
+              >
                 <div className="flex items-center gap-3">
-                  {/* Icono Visual dependiendo del tipo */}
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg shadow-sm
                     ${isAbono ? 'bg-emerald-100 text-emerald-600' : 
                       isTransferencia ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-500'}`}
