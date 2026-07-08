@@ -75,21 +75,25 @@ export default function DashboardHub() {
 
         {vistaActiva === 'nueva' && (
           <div className="space-y-2">
+            {/* El botón de volver cambia su texto y destino dinámicamente */}
             <button 
               onClick={() => {
-                setVistaActiva('resumen');
-                setTransaccionActiva(null); // Limpiar si cancelas
+                setVistaActiva(transaccionActiva ? 'historial' : 'resumen');
               }}
               className="text-xs text-slate-500 font-medium flex items-center gap-1 hover:text-slate-800 transition-colors mb-2"
             >
-              ← Volver al Patrimonio
+              ← Volver al {transaccionActiva ? 'Historial' : 'Patrimonio'}
             </button>
-            {/* AQUÍ INYECTAMOS LA PROP */}
+            
+            {/* Pasamos la función onCancelar al formulario */}
             <TransaccionForm 
               transaccionAEditar={transaccionActiva} 
               onGuardadoExitoso={() => {
-                setTransaccionActiva(null); // Limpiamos tras guardar
-                setVistaActiva('historial'); // O pcional: mandarlo al historial para ver su cambio
+                setTransaccionActiva(null); 
+                setVistaActiva('historial'); 
+              }}
+              onCancelar={() => {
+                setVistaActiva('historial'); // La tacha te regresa directo a la lista
               }}
             />
           </div>

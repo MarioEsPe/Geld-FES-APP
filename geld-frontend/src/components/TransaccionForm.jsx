@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../utils/api';
 
-export default function TransaccionForm({ transaccionAEditar, onGuardadoExitoso }) {
+export default function TransaccionForm({ transaccionAEditar, onGuardadoExitoso, onCancelar }) {
   const [cuentas, setCuentas] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -131,10 +131,23 @@ export default function TransaccionForm({ transaccionAEditar, onGuardadoExitoso 
 
   return (
     <div className="max-w-md mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mt-4 mb-20">
-      {/* Título dinámico */}
-      <h2 className="text-2xl font-bold text-slate-800 mb-6">
-        {transaccionAEditar ? 'Editar Movimiento' : 'Nueva Transacción'}
-      </h2>
+      {/* Título dinámico y Botón de Cancelar */}
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-slate-800">
+          {transaccionAEditar ? 'Editar Movimiento' : 'Nueva Transacción'}
+        </h2>
+        {/* Si estamos editando y nos pasaron la función onCancelar, mostramos la tacha */}
+        {transaccionAEditar && onCancelar && (
+          <button
+            type="button"
+            onClick={onCancelar}
+            className="text-slate-400 hover:bg-slate-100 hover:text-slate-800 w-8 h-8 flex items-center justify-center rounded-full transition-colors font-bold text-lg"
+            title="Cancelar edición"
+          >
+            ✕
+          </button>
+        )}
+      </div>
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm break-words">
