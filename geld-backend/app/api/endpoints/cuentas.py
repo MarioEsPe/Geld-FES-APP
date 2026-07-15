@@ -1,14 +1,15 @@
 # app/api/endpoints/cuentas.py
 from fastapi import APIRouter, Depends, HTTPException  # <-- AGREGADO HTTPException
-from sqlmodel import Session
+from sqlmodel import Session, select
 from typing import List
+from sqlalchemy import func
 
 from app.db.database import get_session
 from app.schemas.cuenta import CuentaCreate, CuentaRead, CuentaUpdate
 from app.crud import crud_cuenta
 
 from app.api.deps import obtener_usuario_actual
-from app.models.domain import Usuario, Cuenta  # <-- AGREGADO Cuenta desde tus modelos
+from app.models.domain import Usuario, Cuenta, Transaccion
 
 router = APIRouter()
 
@@ -36,6 +37,53 @@ def read_cuentas(
     *Ruta Protegida: Requiere Token JWT.*
     """
     return crud_cuenta.get_cuentas(session=session, skip=skip, limit=limit)
+
+@router.get("/resumen/saldos")
+def resumen_saldos(
+    session: Session = Depends(get_session),
+    usuario_actual = Depends(obtener_usuario_actual)
+):
+    """Calcula el Saldo Actual al Vuelo para cada cuenta."""
+    cuentas = session.exec(select(Cuenta)).all()
+    resultado = []
+    
+    for c in cuentas:
+        # Sumamos Cargos (Gastos)
+        cargos = session.exec(
+            select(func.sum(Transaccion.monto))
+            .where(Transaccion.cuenta_id == c.id, Transaccion.tipo == "CARGO")
+        ).first() or 0
+        
+        # Sumamos Abonos (Ingresos)
+        abonos = session.exec(
+            select(func.sum(Transaccion.monto))
+            .where(Transaccion.cuenta_id == c.id, Transaccion.tipo == "ABONO")
+        ).first() or 0
+        
+        # Sumamos Transferencias Salientes
+        transf_out = session.exec(
+            select(func.sum(Transaccion.monto))
+            .where(Transaccion.cuenta_id == c.id, Transaccion.tipo == "TRANSFERENCIA")
+        ).first() or 0
+        
+        # Sumamos Transferencias Entrantes
+        transf_in = session.exec(
+            select(func.sum(Transaccion.monto))
+            .where(Transaccion.cuenta_destino_id == c.id, Transaccion.tipo == "TRANSFERENCIA")
+        ).first() or 0
+        
+        # La Fórmula Maestra
+        saldo_actual = c.saldo_inicial + abonos - cargos + transf_in - transf_out
+        
+        resultado.append({
+            "id": c.id,
+            "nombre_cuenta": c.nombre_cuenta,
+            "moneda": c.moneda,
+            "saldo_inicial": c.saldo_inicial,
+            "saldo_actual": saldo_actual
+        })
+        
+    return resultado
 
 @router.put("/{cuenta_id}")
 def actualizar_cuenta(
