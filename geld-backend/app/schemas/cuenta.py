@@ -1,6 +1,7 @@
 # app/schemas/cuenta.py
 from pydantic import BaseModel, Field, ConfigDict
 from decimal import Decimal
+from typing import Optional
 
 # 1. Lo que requerimos para crear una cuenta
 class CuentaCreate(BaseModel):
@@ -20,3 +21,8 @@ class CuentaRead(BaseModel):
     tipo_cuenta: str
     
     model_config = ConfigDict(from_attributes=True)
+    
+class CuentaUpdate(BaseModel):
+    nombre_cuenta: Optional[str] = None
+    saldo_inicial: Optional[Decimal] = None
+    moneda: Optional[str] = None    
