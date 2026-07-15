@@ -4,6 +4,7 @@ import TransaccionForm from './TransaccionForm';
 import HistorialLista from './HistorialLista';
 import GraficaGastos from './GraficaGastos';
 import TransaccionDetalle from './TransaccionDetalle';
+import CuentasLista from './CuentasLista';
 
 export default function DashboardHub() {
   const [vistaActiva, setVistaActiva] = useState('resumen');
@@ -124,6 +125,21 @@ export default function DashboardHub() {
           </div>
         )}
 
+        {vistaActiva === 'cuentas' && (
+          <div className="space-y-2 animate-fade-in">
+            <CuentasLista 
+              onNuevaCuentaClick={() => {
+                // Pronto crearemos el CuentaForm
+                alert("Pronto abriremos el formulario para crear cuentas");
+              }}
+              onCuentaClick={(cuenta) => {
+                // Pronto crearemos el DetalleCuenta
+                console.log("Cuenta seleccionada:", cuenta);
+              }}
+            />
+          </div>
+        )}
+
         {/* VISTA 3: DETALLE DE TRANSACCIÓN */}
      {vistaActiva === 'detalle' && transaccionActiva && (
        <TransaccionDetalle 
@@ -144,7 +160,7 @@ export default function DashboardHub() {
 
       {/* NAV */}
       <nav className="fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 shadow-[0_-4px_15px_rgba(0,0,0,0.05)] py-2 px-6 z-50">
-        <div className="grid grid-cols-2 gap-4 max-w-lg mx-auto">
+        <div className="grid grid-cols-3 gap-2 max-w-lg mx-auto">
           
           <button
             type="button"
@@ -161,7 +177,23 @@ export default function DashboardHub() {
             <span className="text-xs">📊 Resumen</span>
           </button>
 
-          {/* Hacemos que Historial se quede marcado en verde si estamos en la vista de detalle */}
+          {/* NUEVO BOTÓN: Cuentas */}
+          <button
+            type="button"
+            onClick={() => {
+              setTransaccionActiva(null);
+              setVistaActiva('cuentas');
+            }}
+            className={`flex flex-col items-center justify-center py-2 rounded-xl transition-all ${
+              vistaActiva === 'cuentas'
+                ? 'text-emerald-600 font-bold bg-emerald-50'
+                : 'text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            <span className="text-xs">💳 Cuentas</span>
+          </button>
+
+          {/* Botón Historial */}
           <button
             type="button"
             onClick={() => setVistaActiva('historial')}
