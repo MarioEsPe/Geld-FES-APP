@@ -8,6 +8,7 @@ import CuentasLista from './CuentasLista';
 import CuentaForm from './CuentaForm';
 import CuentaDetalle from './CuentaDetalle';
 import GestorCategorias from './GestorCategorias';
+import ResumenMes from './ResumenMes';
 
 export default function DashboardHub() {
   const [vistaActiva, setVistaActiva] = useState('resumen');
@@ -69,15 +70,11 @@ export default function DashboardHub() {
         
         {vistaActiva === 'resumen' && (
           <div className="space-y-4">
-            <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                Mi Patrimonio
-              </h3>
-              <Patrimonio />
-            </div>
-
-            <GraficaGastos />
             
+            {/* NUEVO TABLERO DE CONTROL MENSUAL */}
+            <ResumenMes />
+            
+            {/* BOTÓN DE CAPTURA RÁPIDA (Se mantiene) */}
             <div className="bg-slate-800 text-white rounded-2xl p-6 shadow-sm mt-4">
               <h4 className="font-bold text-base mb-1">¿Registrar movimiento?</h4>
               <p className="text-slate-400 text-xs mb-4">Añade tus ingresos o gastos del día.</p>
