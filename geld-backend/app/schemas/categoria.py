@@ -18,3 +18,9 @@ class CategoriaRead(BaseModel):
     familia_id: str
     
     model_config = ConfigDict(from_attributes=True)
+    
+class CategoriaUpdate(BaseModel):
+    nombre_categoria: Optional[str] = None
+    presupuesto_mensual: Optional[Decimal] = None
+    icono: Optional[str] = None
+    familia_id: Optional[str] = None    

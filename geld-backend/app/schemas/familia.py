@@ -1,5 +1,6 @@
 # app/schemas/familia.py
 from pydantic import BaseModel, Field, ConfigDict
+from typing import Optional
 
 # 1. Lo que requerimos que el usuario envíe para crear una familia
 class FamiliaCreate(BaseModel):
@@ -13,3 +14,6 @@ class FamiliaRead(BaseModel):
     
     # Esta configuración permite que Pydantic lea los objetos de SQLModel/Base de Datos
     model_config = ConfigDict(from_attributes=True)
+    
+class FamiliaUpdate(BaseModel):
+    nombre_familia: Optional[str] = None    
