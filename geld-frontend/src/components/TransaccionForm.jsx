@@ -2,299 +2,306 @@ import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../utils/api';
 
 export default function TransaccionForm({ transaccionAEditar, onGuardadoExitoso, onCancelar }) {
+  // --- CATÁLOGOS DINÁMICOS DEL BACKEND ---
   const [cuentas, setCuentas] = useState([]);
-  const [categorias, setCategorias] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(false);
+  const [categoriasPrincipales, setFamilias] = useState([]); // Familias en backend
+  const [subcategorias, setCategorias] = useState([]);       // Categorías en backend
 
+  // --- ESTADOS DE CONTROL ---
+  const [loadingCatalogos, setLoadingCatalogos] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+
+  // --- ESTADO DEL FORMULARIO ---
   const [formData, setFormData] = useState({
-    tipo: 'Gasto',
+    fecha: new Date().toISOString().split('T')[0], // Fecha de hoy por defecto
     monto: '',
-    concepto: '',
-    id_cuenta: '',
-    id_categoria: '',
-    id_cuenta_destino: '', 
-    fecha: new Date().toISOString().split('T')[0] 
+    tipo: 'CARGO',
+    categoria_id: '',
+    cuenta_id: '',
+    cuenta_destino_id: '',
+    tipo_de_cambio: '1.0000',
+    descripcion: ''
   });
 
-  // EFECTO 1: Cargar catálogos (se mantiene igual)
+  // 1. Carga inicial de todos los catálogos requeridos
   useEffect(() => {
-    const fetchCatalogos = async () => {
+    const cargarCatalogos = async () => {
       try {
-        const [resCuentas, resCategorias] = await Promise.all([
-          apiFetch('http://localhost:8000/cuentas/'),
-          apiFetch('http://localhost:8000/categorias/')
+        setLoadingCatalogos(true);
+        const [resCuentas, resFamilias, resCategorias] = await Promise.all([
+          apiFetch('http://127.0.0.1:8000/cuentas/'),
+          apiFetch('http://127.0.0.1:8000/familias/'),
+          apiFetch('http://127.0.0.1:8000/categorias/')
         ]);
-        
-        setCuentas(await resCuentas.json());
-        setCategorias(await resCategorias.json());
+
+        if (!resCuentas.ok || !resFamilias.ok || !resCategorias.ok) {
+          throw new Error('No se pudieron descargar los catálogos del servidor.');
+        }
+
+        const dataCuentas = await resCuentas.json();
+        const dataFamilias = await resFamilias.json();
+        const dataCategorias = await resCategorias.json();
+
+        setCuentas(dataCuentas);
+        setFamilias(dataFamilias);
+        setCategorias(dataCategorias);
+
+        // Si estamos editando un movimiento existente, precargamos su estado
+        if (transaccionAEditar) {
+          setFormData({
+            fecha: transaccionAEditar.fecha || '',
+            monto: Math.abs(transaccionAEditar.monto) || '',
+            tipo: transaccionAEditar.tipo || 'CARGO',
+            categoria_id: transaccionAEditar.categoria_id || '',
+            cuenta_id: transaccionAEditar.cuenta_id || '',
+            cuenta_destino_id: transaccionAEditar.cuenta_destino_id || '',
+            tipo_de_cambio: transaccionAEditar.tipo_de_cambio || '1.0000',
+            descripcion: transaccionAEditar.descripcion || ''
+          });
+        } else {
+          // Si es una nueva captura, preseleccionamos la primera cuenta si existe
+          if (dataCuentas.length > 0) {
+            setFormData(prev => ({ ...prev, cuenta_id: dataCuentas[0].id }));
+          }
+        }
       } catch (err) {
-        setError('No pudimos cargar tus cuentas o categorías. Verifica tu conexión.');
+        setError(err.message);
+      } finally {
+        setLoadingCatalogos(false);
       }
     };
-    fetchCatalogos();
-  }, []);
 
-  // NUEVO EFECTO 2: Precargar datos si estamos en Modo Edición
-  useEffect(() => {
-    if (transaccionAEditar) {
-      // Traducir el enum de PostgreSQL al texto de la UI
-      let tipoUI = 'Gasto';
-      if (transaccionAEditar.tipo === 'ABONO') tipoUI = 'Ingreso';
-      if (transaccionAEditar.tipo === 'TRANSFERENCIA') tipoUI = 'Transferencia';
-
-      setFormData({
-        tipo: tipoUI,
-        monto: transaccionAEditar.monto || '',
-        concepto: transaccionAEditar.descripcion || '',
-        id_cuenta: transaccionAEditar.cuenta_id || '',
-        id_categoria: transaccionAEditar.categoria_id || '',
-        id_cuenta_destino: transaccionAEditar.cuenta_destino_id || '',
-        // Cortar la hora si el backend devuelve un timestamp completo
-        fecha: transaccionAEditar.fecha ? transaccionAEditar.fecha.split('T')[0] : new Date().toISOString().split('T')[0]
-      });
-    }
+    cargarCatalogos();
   }, [transaccionAEditar]);
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value,
+      // UX: Si cambia el tipo y deja de ser TRANSFERENCIA, limpiamos la cuenta destino
+      ...(name === 'tipo' && value !== 'TRANSFERENCIA' ? { cuenta_destino_id: '' } : {})
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    setIsSubmitting(true);
     setError(null);
-    setSuccess(false);
+
+    // Validaciones básicas de negocio antes de persistir en el backend
+    if (formData.tipo === 'TRANSFERENCIA' && formData.cuenta_id === formData.cuenta_destino_id) {
+      setError('La cuenta origen y destino no pueden ser la misma en una transferencia.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    const esEdicion = !!transaccionAEditar;
+    const url = esEdicion
+      ? `http://127.0.0.1:8000/transacciones/${transaccionAEditar.id}`
+      : 'http://127.0.0.1:8000/transacciones/';
+    const method = esEdicion ? 'PUT' : 'POST';
+
+    // Construcción limpia del payload conforme a los requerimientos de la DB
+    const payload = {
+      fecha: formData.fecha,
+      monto: parseFloat(formData.monto),
+      tipo: formData.tipo,
+      categoria_id: formData.categoria_id,
+      cuenta_id: formData.cuenta_id,
+      cuenta_destino_id: formData.tipo === 'TRANSFERENCIA' ? formData.cuenta_destino_id : null,
+      tipo_de_cambio: parseFloat(formData.tipo_de_cambio),
+      descripcion: formData.descripcion || null
+    };
 
     try {
-      let tipoEnum = 'CARGO'; 
-      if (formData.tipo === 'Ingreso') tipoEnum = 'ABONO';
-      if (formData.tipo === 'Transferencia') tipoEnum = 'TRANSFERENCIA';
-
-      const payload = {
-        cuenta_id: String(formData.id_cuenta),
-        monto: parseFloat(formData.monto),
-        tipo: tipoEnum,
-        fecha: formData.fecha,
-        tipo_de_cambio: 1.0,
-        descripcion: formData.concepto || null,
-      };
-
-      if (formData.tipo === 'Transferencia') {
-        payload.cuenta_destino_id = String(formData.id_cuenta_destino);
-      } else {
-        payload.categoria_id = String(formData.id_categoria);
-      }
-
-      // LÓGICA DINÁMICA: Elegir endpoint y método según el modo
-      const isEditing = !!transaccionAEditar;
-      const endpoint = isEditing 
-        ? `http://localhost:8000/transacciones/${transaccionAEditar.id}`
-        : 'http://localhost:8000/transacciones/';
-      const httpMethod = isEditing ? 'PUT' : 'POST';
-
-      const response = await apiFetch(endpoint, {
-        method: httpMethod,
-        body: JSON.stringify(payload),
+      const response = await apiFetch(url, {
+        method,
+        body: JSON.stringify(payload)
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(JSON.stringify(errorData.detail) || 'Error en las validaciones del backend.');
+        const errData = await response.json();
+        throw new Error(errData.detail || 'Ocurrió un error inesperado al procesar el movimiento.');
       }
 
-      setSuccess(true);
-      
-      // Si todo sale bien, ejecutamos la función de éxito (si nos la pasaron)
-      if (onGuardadoExitoso) {
-        setTimeout(() => onGuardadoExitoso(), 1000); // 1 segundo para que el usuario lea "Éxito"
-      } else if (!isEditing) {
-        // Solo limpiamos si es una inserción nueva y no hay redirección
-        setFormData({
-          ...formData,
-          monto: '',
-          concepto: '',
-          id_cuenta: '',
-          id_categoria: '',
-          id_cuenta_destino: ''
-        });
-      }
-
+      if (onGuardadoExitoso) onGuardadoExitoso();
     } catch (err) {
-      console.error(err);
       setError(err.message);
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
+  if (loadingCatalogos) {
+    return <div className="p-6 text-center text-sm font-semibold text-slate-500">Preparando panel de captura...</div>;
+  }
+
   return (
-    <div className="max-w-md mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mt-4 mb-20">
-      {/* Título dinámico y Botón de Cancelar */}
+    <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm max-w-xl mx-auto">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-slate-800">
-          {transaccionAEditar ? 'Editar Movimiento' : 'Nueva Transacción'}
+        <h2 className="text-xl font-black text-slate-800 tracking-tight">
+          {transaccionAEditar ? '📝 Editar Movimiento' : '💰 Captura de Transacción'}
         </h2>
-        {/* Si estamos editando y nos pasaron la función onCancelar, mostramos la tacha */}
-        {transaccionAEditar && onCancelar && (
-          <button
-            type="button"
-            onClick={onCancelar}
-            className="text-slate-400 hover:bg-slate-100 hover:text-slate-800 w-8 h-8 flex items-center justify-center rounded-full transition-colors font-bold text-lg"
-            title="Cancelar edición"
+        {onCancelar && (
+          <button 
+            type="button" 
+            onClick={onCancelar} 
+            className="text-slate-400 hover:text-slate-600 font-bold p-1 text-sm"
           >
-            ✕
+            ✕ Cancelar
           </button>
         )}
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm break-words">
-          {error}
-        </div>
-      )}
-      {success && (
-        <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-lg mb-4 text-sm">
-          {transaccionAEditar ? '¡Cambios guardados con éxito!' : '¡Movimiento registrado con éxito!'}
+        <div className="mb-4 bg-red-50 text-red-600 text-xs font-bold p-3 rounded-xl border border-red-100">
+          ⚠️ {error}
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        
+        {/* FILA 1: Tipo de Movimiento */}
         <div>
-          <label className="block text-sm font-semibold text-slate-600 mb-2">Tipo de Movimiento</label>
+          <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-1.5">Tipo de Movimiento</label>
           <div className="grid grid-cols-3 gap-2">
-            {['Gasto', 'Ingreso', 'Transferencia'].map((tipo) => (
+            {['CARGO', 'ABONO', 'TRANSFERENCIA'].map(t => (
               <button
+                key={t}
                 type="button"
-                key={tipo}
-                onClick={() => setFormData({ ...formData, tipo, id_categoria: '', id_cuenta_destino: '' })}
-                className={`py-2 text-sm font-medium rounded-lg border transition-colors ${
-                  formData.tipo === tipo 
-                    ? 'bg-slate-800 text-white border-slate-800' 
-                    : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
+                onClick={() => handleChange({ target: { name: 'tipo', value: t } })}
+                className={`py-2.5 rounded-xl font-bold text-xs border transition-all ${
+                  formData.tipo === t
+                    ? t === 'ABONO'
+                      ? 'bg-emerald-50 text-emerald-600 border-emerald-500 shadow-sm'
+                      : t === 'CARGO'
+                      ? 'bg-red-50 text-red-600 border-red-500 shadow-sm'
+                      : 'bg-blue-50 text-blue-600 border-blue-500 shadow-sm'
+                    : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
                 }`}
               >
-                {tipo}
+                {t === 'CARGO' ? '📉 Gasto' : t === 'ABONO' ? '📈 Ingreso' : '🔄 Transf.'}
               </button>
             ))}
           </div>
         </div>
 
+        {/* FILA 2: Monto y Fecha */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-semibold text-slate-600 mb-1">Monto ($)</label>
+            <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-1">Monto ($)</label>
             <input
-              type="number"
-              name="monto"
-              step="0.01"
-              required
-              min="0.01"
-              value={formData.monto}
-              onChange={handleChange}
-              className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all text-lg font-medium"
-              placeholder="0.00"
+              type="number" name="monto" required min="0.01" step="0.01"
+              placeholder="0.00" className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl font-mono text-sm focus:bg-white focus:ring-2 focus:ring-slate-800 outline-none transition-all"
+              value={formData.monto} onChange={handleChange}
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-slate-600 mb-1">Fecha</label>
+            <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-1">Fecha</label>
             <input
-              type="date"
-              name="fecha"
-              required
-              value={formData.fecha}
-              onChange={handleChange}
-              className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+              type="date" name="fecha" required
+              className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-slate-800 outline-none transition-all"
+              value={formData.fecha} onChange={handleChange}
             />
           </div>
         </div>
 
+        {/* FILA 3: Cuentas (Dinámicas) */}
+        <div className={formData.tipo === 'TRANSFERENCIA' ? 'grid grid-cols-2 gap-4' : 'block'}>
+          <div>
+            <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-1">
+              {formData.tipo === 'TRANSFERENCIA' ? 'Cuenta Origen' : 'Cuenta'}
+            </label>
+            <select
+              name="cuenta_id" required
+              className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-slate-800 outline-none transition-all"
+              value={formData.cuenta_id} onChange={handleChange}
+            >
+              <option value="" disabled>Selecciona cuenta...</option>
+              {cuentas.map(c => (
+                <option key={c.id} value={c.id}>{c.nombre_cuenta} ({c.moneda})</option>
+              ))}
+            </select>
+          </div>
+
+          {formData.tipo === 'TRANSFERENCIA' && (
+            <div>
+              <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-1">Cuenta Destino</label>
+              <select
+                name="cuenta_destino_id" required
+                className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all animate-fade-in"
+                value={formData.cuenta_destino_id} onChange={handleChange}
+              >
+                <option value="">Selecciona destino...</option>
+                {cuentas.map(c => (
+                  <option key={c.id} value={c.id}>{c.nombre_cuenta} ({c.moneda})</option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+
+        {/* FILA 4: Selector Dinámico y Agrupado de Subcategorías (Backend: Categorias) */}
         <div>
-          <label className="block text-sm font-semibold text-slate-600 mb-1">
-            {formData.tipo === 'Ingreso' ? 'Depositar en' : 'Cuenta de Origen'}
-          </label>
+          <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-1">Subcategoría</label>
           <select
-            name="id_cuenta"
-            required
-            value={formData.id_cuenta}
-            onChange={handleChange}
-            className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
+            name="categoria_id" required
+            className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-slate-800 outline-none transition-all"
+            value={formData.categoria_id} onChange={handleChange}
           >
-            <option value="">Selecciona una cuenta...</option>
-            {Array.isArray(cuentas) && cuentas.map(c => <option key={c.id} value={c.id}>{c.nombre_cuenta}</option>)}
+            <option value="" disabled>Selecciona una opción...</option>
+            {categoriasPrincipales.map(familia => {
+              // Filtramos las subcategorías (categorías backend) correspondientes a este grupo principal (familia)
+              const hijas = subcategorias.filter(sub => sub.familia_id === familia.id);
+              
+              if (hijas.length === 0) return null;
+
+              return (
+                <optgroup key={familia.id} label={familia.nombre_familia.toUpperCase()}>
+                  {hijas.map(sub => (
+                    <option key={sub.id} value={sub.id}>
+                      {sub.icono} {sub.nombre_categoria}
+                    </option>
+                  ))}
+                </optgroup>
+              );
+            })}
           </select>
         </div>
 
-        {formData.tipo === 'Transferencia' && (
-          <div>
-            <label className="block text-sm font-semibold text-slate-600 mb-1">Cuenta Destino</label>
-            <select
-              name="id_cuenta_destino"
-              required={formData.tipo === 'Transferencia'}
-              value={formData.id_cuenta_destino}
-              onChange={handleChange}
-              className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
-            >
-              <option value="">Selecciona la cuenta destino...</option>
-              {Array.isArray(cuentas) && cuentas.map(c => (
-                <option key={c.id} value={c.id} disabled={c.id === String(formData.id_cuenta)}>
-                  {c.nombre_cuenta}
-                </option>
-              ))}
-            </select>
+        {/* FILA 5: Tipo de Cambio (Sólo visible opcionalmente si es necesario) */}
+        {formData.tipo === 'TRANSFERENCIA' && (
+          <div className="animate-fade-in">
+            <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-1">Tipo de Cambio (Destino / Origen)</label>
+            <input
+              type="number" name="tipo_de_cambio" required min="0.0001" step="0.0001"
+              className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl font-mono text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+              value={formData.tipo_de_cambio} onChange={handleChange}
+            />
+            <p className="text-[10px] text-slate-400 mt-1">Multiplica el monto origen para calcular el impacto en la cuenta destino si manejan divisas distintas.</p>
           </div>
         )}
 
-        {formData.tipo !== 'Transferencia' && (
-          <div>
-            <label className="block text-sm font-semibold text-slate-600 mb-1">Categoría</label>
-            <select
-              name="id_categoria"
-              required={formData.tipo !== 'Transferencia'}
-              value={formData.id_categoria}
-              onChange={handleChange}
-              className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
-            >
-              <option value="">Selecciona una categoría...</option>
-              {Array.isArray(categorias) && categorias.map(c => (
-                <option key={c.id} value={c.id}>{c.nombre_categoria}</option>
-              ))}
-            </select>
-          </div>
-        )}
-
+        {/* FILA 6: Descripción */}
         <div>
-          <label className="block text-sm font-semibold text-slate-600 mb-1">Concepto (Opcional)</label>
+          <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-1">Descripción / Nota</label>
           <input
-            type="text"
-            name="concepto"
-            value={formData.concepto}
-            onChange={handleChange}
-            className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
-            placeholder="Ej. Tacos de la esquina"
+            type="text" name="descripcion" placeholder="Ej. Despensa mensual Chedraui, pago de luz..."
+            className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-slate-800 outline-none transition-all"
+            value={formData.descripcion} onChange={handleChange}
           />
         </div>
 
-        {/* Botón dinámico */}
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full mt-6 bg-emerald-600 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-emerald-700 focus:outline-none focus:ring-4 focus:ring-emerald-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center"
-        >
-          {loading ? (
-            <span className="flex items-center gap-2">
-              <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Guardando...
-            </span>
-          ) : (
-            transaccionAEditar ? 'Guardar Cambios' : 'Registrar Movimiento'
-          )}
-        </button>
-
+        {/* BOTÓN DE ACCIÓN */}
+        <div className="pt-2">
+          <button
+            type="submit" disabled={isSubmitting}
+            className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-sm py-3 rounded-xl transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? 'Procesando movimiento económico...' : transaccionAEditar ? 'Confirmar Cambios' : 'Registrar Transacción'}
+          </button>
+        </div>
       </form>
     </div>
   );
