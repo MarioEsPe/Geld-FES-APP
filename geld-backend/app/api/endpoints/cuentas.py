@@ -116,14 +116,27 @@ def eliminar_cuenta(
     usuario_actual = Depends(obtener_usuario_actual)
 ):
     """
-    Elimina una cuenta. 
-    Nota: Fallará automáticamente (protección de integridad) si la cuenta 
-    ya tiene transacciones asociadas en el historial.
+    Elimina una cuenta, previa validación estricta de que no tenga transacciones.
     """
     cuenta = session.get(Cuenta, cuenta_id)
     if not cuenta:
         raise HTTPException(status_code=404, detail="Cuenta no encontrada")
     
+    # 1. Validación explícita: Revisar si existen transacciones ligadas
+    movimiento_existente = session.exec(
+        select(Transaccion).where(
+            (Transaccion.cuenta_id == cuenta_id) | 
+            (Transaccion.cuenta_destino_id == cuenta_id)
+        )
+    ).first()
+    
+    if movimiento_existente:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"No es posible eliminar '{cuenta.nombre_cuenta}' porque ya tiene transacciones registradas en el historial."
+        )
+    
+    # 2. Si está limpia, procedemos a borrarla
     session.delete(cuenta)
     session.commit()
     return {"mensaje": "Cuenta eliminada correctamente"}
