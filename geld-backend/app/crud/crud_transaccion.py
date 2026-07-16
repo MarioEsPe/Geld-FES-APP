@@ -3,7 +3,8 @@ from datetime import date
 from typing import Optional, Tuple, List
 from sqlmodel import Session, select, func
 from decimal import Decimal
-from app.models.domain import Transaccion, Cuenta, TipoMovimiento
+from sqlalchemy import func
+from app.models.domain import Transaccion, Cuenta, TipoMovimiento, Categoria, Familia
 from app.schemas.transaccion import TransaccionCreate
 
 def create_transaccion(session: Session, transaccion_in: TransaccionCreate) -> Transaccion:
@@ -92,3 +93,61 @@ def get_transacciones(
     transacciones = session.exec(query).all()
     
     return total_registros, transacciones
+
+def obtener_resumen_mes_actual(session: Session) -> dict:
+    hoy = date.today()
+    primer_dia_mes = hoy.replace(day=1)
+    dias_transcurridos = hoy.day
+
+    # 1. Calcular el total de gastos (CARGOS) del mes en curso
+    total_gastos = session.exec(
+        select(func.sum(Transaccion.monto))
+        .where(Transaccion.tipo == "CARGO")
+        .where(Transaccion.fecha >= primer_dia_mes)
+        .where(Transaccion.fecha <= hoy)
+    ).first() or Decimal("0.00")
+
+    # 2. Calcular promedio diario
+    promedio_diario = total_gastos / Decimal(dias_transcurridos) if dias_transcurridos > 0 else Decimal("0.00")
+
+    # 3. Extraer desglose agrupado haciendo JOIN con Categorías y Familias
+    statement = (
+        select(
+            Familia.nombre_familia,
+            Categoria.nombre_categoria,
+            Categoria.icono,
+            Categoria.presupuesto_mensual,
+            func.sum(Transaccion.monto).label("total_gastado")
+        )
+        .join(Categoria, Transaccion.categoria_id == Categoria.id)
+        .join(Familia, Categoria.familia_id == Familia.id)
+        .where(Transaccion.tipo == "CARGO")
+        .where(Transaccion.fecha >= primer_dia_mes)
+        .where(Transaccion.fecha <= hoy)
+        .group_by(Familia.nombre_familia, Categoria.nombre_categoria, Categoria.icono, Categoria.presupuesto_mensual)
+        .order_by(func.sum(Transaccion.monto).desc()) # Ordenar de mayor a menor gasto
+    )
+    
+    resultados_db = session.exec(statement).all()
+    
+    desglose = []
+    for familia_nom, cat_nom, icono, ppto, gastado in resultados_db:
+        ppto_dec = ppto or Decimal("0.00")
+        # Calculamos el porcentaje, evitando divisiones por cero
+        porcentaje = (gastado / ppto_dec * Decimal("100.00")) if ppto_dec > 0 else Decimal("0.00")
+        
+        desglose.append({
+            "categoria_principal": familia_nom,
+            "subcategoria": cat_nom,
+            "icono": icono or "🏷️",
+            "total_gastado": gastado,
+            "presupuesto_mensual": ppto_dec,
+            "porcentaje_usado": round(porcentaje, 2)
+        })
+
+    return {
+        "total_gastos": round(total_gastos, 2),
+        "dias_transcurridos": dias_transcurridos,
+        "promedio_diario": round(promedio_diario, 2),
+        "desglose": desglose
+    }

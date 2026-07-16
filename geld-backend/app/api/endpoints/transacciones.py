@@ -8,7 +8,7 @@ from typing import Dict
 from sqlalchemy import select, func
 
 from app.db.database import get_session
-from app.schemas.transaccion import TransaccionCreate, TransaccionRead, PaginatedTransacciones, GastoPorCategoria, TransaccionUpdate
+from app.schemas.transaccion import TransaccionCreate, TransaccionRead, PaginatedTransacciones, GastoPorCategoria, TransaccionUpdate, ResumenMesActual
 from app.crud import crud_transaccion
 from app.models.domain import TipoMovimiento
 
@@ -45,6 +45,17 @@ def obtener_saldo_actual(
         raise HTTPException(status_code=404, detail="Cuenta no encontrada")
     
     return {"saldo_actual": saldo}
+
+@router.get("/resumen/mes-actual", response_model=ResumenMesActual)
+def resumen_mensual(
+    session: Session = Depends(get_session),
+    usuario_actual = Depends(obtener_usuario_actual)
+):
+    """
+    Obtiene el tablero de control del mes actual: Total de gastos, 
+    promedio diario y desglose porcentual por subcategoría.
+    """
+    return crud_transaccion.obtener_resumen_mes_actual(session)
 
 @router.get("/analitica/gastos", response_model=list[GastoPorCategoria])
 def obtener_analitica_gastos(

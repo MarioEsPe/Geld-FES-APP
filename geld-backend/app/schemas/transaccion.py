@@ -82,3 +82,17 @@ class TransaccionUpdate(BaseModel):
     cuenta_destino_id: Optional[str] = None
     fecha: Optional[date] = None
     descripcion: Optional[str] = None            
+    
+class SubcategoriaResumen(BaseModel):
+    categoria_principal: str
+    subcategoria: str
+    icono: str
+    total_gastado: Decimal
+    presupuesto_mensual: Decimal
+    porcentaje_usado: Decimal
+
+class ResumenMesActual(BaseModel):
+    total_gastos: Decimal
+    dias_transcurridos: int
+    promedio_diario: Decimal
+    desglose: List[SubcategoriaResumen]    
