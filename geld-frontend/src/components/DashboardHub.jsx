@@ -5,11 +5,14 @@ import HistorialLista from './HistorialLista';
 import GraficaGastos from './GraficaGastos';
 import TransaccionDetalle from './TransaccionDetalle';
 import CuentasLista from './CuentasLista';
+import CuentaForm from './CuentaForm';
+import CuentaDetalle from './CuentaDetalle';
 
 export default function DashboardHub() {
   const [vistaActiva, setVistaActiva] = useState('resumen');
   // NUEVO: Estado para saber qué transacción se seleccionó
   const [transaccionActiva, setTransaccionActiva] = useState(null);
+  const [cuentaActiva, setCuentaActiva] = useState(null);
 
   // NUEVA: Función que se dispara al hacer clic en un elemento del historial
   const handleTransaccionClick = (tx) => {
@@ -125,19 +128,63 @@ export default function DashboardHub() {
           </div>
         )}
 
+        {/* VISTA 4: LISTA DE CUENTAS */}
         {vistaActiva === 'cuentas' && (
           <div className="space-y-2 animate-fade-in">
             <CuentasLista 
               onNuevaCuentaClick={() => {
-                // Pronto crearemos el CuentaForm
-                alert("Pronto abriremos el formulario para crear cuentas");
+                setCuentaActiva(null);
+                setVistaActiva('nuevaCuenta');
               }}
               onCuentaClick={(cuenta) => {
-                // Pronto crearemos el DetalleCuenta
-                console.log("Cuenta seleccionada:", cuenta);
+                setCuentaActiva(cuenta); // Guardamos la cuenta clickeada
+                setVistaActiva('detalleCuenta'); // Cambiamos de vista
               }}
             />
           </div>
+        )}
+
+        {/* VISTA 5: FORMULARIO DE NUEVA/EDITAR CUENTA */}
+        {vistaActiva === 'nuevaCuenta' && (
+          <div className="space-y-2 animate-fade-in">
+            <button 
+              onClick={() => {
+                setVistaActiva(cuentaActiva ? 'detalleCuenta' : 'cuentas');
+              }}
+              className="text-xs text-slate-500 font-medium flex items-center gap-1 hover:text-slate-800 transition-colors mb-2"
+            >
+              ← Volver {cuentaActiva ? 'al Detalle' : 'a Mis Cuentas'}
+            </button>
+            
+            <CuentaForm 
+              cuentaAEditar={cuentaActiva} // Pasamos la cuenta si estamos editando
+              onGuardadoExitoso={() => {
+                setCuentaActiva(null);
+                setVistaActiva('cuentas');
+              }}
+              onCancelar={() => {
+                setVistaActiva(cuentaActiva ? 'detalleCuenta' : 'cuentas');
+              }}
+            />
+          </div>
+        )}
+
+        {/* VISTA 6: DETALLE DE CUENTA */}
+        {vistaActiva === 'detalleCuenta' && cuentaActiva && (
+          <CuentaDetalle 
+            cuenta={cuentaActiva}
+            onRegresar={() => {
+              setCuentaActiva(null);
+              setVistaActiva('cuentas');
+            }}
+            onCuentaEliminada={() => {
+              setCuentaActiva(null);
+              setVistaActiva('cuentas');
+            }}
+            onEditarClick={() => {
+              setVistaActiva('nuevaCuenta'); // Usamos el form de creación pero en modo edición
+            }}
+          />
         )}
 
         {/* VISTA 3: DETALLE DE TRANSACCIÓN */}
