@@ -92,12 +92,28 @@ def actualizar_cuenta(
     session: Session = Depends(get_session),
     usuario_actual = Depends(obtener_usuario_actual)
 ):
-    """Actualiza uno o varios campos de una cuenta existente."""
+    """Actualiza una cuenta con protección de integridad para la moneda."""
     cuenta = session.get(Cuenta, cuenta_id)
     if not cuenta:
         raise HTTPException(status_code=404, detail="Cuenta no encontrada")
     
-    # Actualizamos solo los campos que el usuario envió
+    # VALIDACIÓN INTELIGENTE: ¿Intentan cambiar la moneda?
+    if datos_actualizados.moneda and datos_actualizados.moneda != cuenta.moneda:
+        # Revisamos si ya hay transacciones
+        movimiento_existente = session.exec(
+            select(Transaccion).where(
+                (Transaccion.cuenta_id == cuenta_id) | 
+                (Transaccion.cuenta_destino_id == cuenta_id)
+            )
+        ).first()
+        
+        if movimiento_existente:
+            raise HTTPException(
+                status_code=400, 
+                detail="No puedes cambiar la moneda de una cuenta que ya tiene movimientos en el historial."
+            )
+    
+    # Si todo está bien, aplicamos los cambios
     datos_dict = datos_actualizados.model_dump(exclude_unset=True)
     for key, value in datos_dict.items():
         setattr(cuenta, key, value)
