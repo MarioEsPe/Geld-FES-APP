@@ -6,41 +6,33 @@ export default function GestorCategorias() {
   const [categorias, setCategorias] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [successMsg, setSuccessMsg] = useState(null);
 
-  // --- ESTADOS: MODAL CATEGORÍA PRINCIPAL (Backend: Familia) ---
-  const [modalFamiliaVisible, setModalFamiliaVisible] = useState(false);
-  const [familiaForm, setFamiliaForm] = useState({ id: null, nombre_familia: '' });
+  // Estados de navegación y edición: 'LISTA', 'CREAR_FAMILIA', 'EDITAR_FAMILIA', 'CREAR_CAT', 'EDITAR_CAT'
+  const [modo, setModo] = useState('LISTA');
+  const [itemAEditar, setItemAEditar] = useState(null);
 
-  // --- ESTADOS: MODAL SUBCATEGORÍA (Backend: Categoria) ---
-  const [modalSubVisible, setModalSubVisible] = useState(false);
-  const [subForm, setSubForm] = useState({ 
-    id: null, 
-    nombre_categoria: '', 
-    presupuesto_mensual: '', 
-    icono: '🏷️', 
-    familia_id: '' 
-  });
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [modalError, setModalError] = useState(null);
-
-  useEffect(() => {
-    cargarDatos();
-  }, []);
+  // Form states
+  const [familiaForm, setFamiliaForm] = useState({ nombre_familia: '', tipo: 'GASTO' });
+  const [categoriaForm, setCategoriaForm] = useState({ nombre_categoria: '', familia_id: '', icono: '🏷️' });
 
   const cargarDatos = async () => {
-    setLoading(true);
-    setError(null);
     try {
-      const [resFamilias, resCategorias] = await Promise.all([
-        apiFetch('http://127.0.0.1:8000/familias/'),
-        apiFetch('http://127.0.0.1:8000/categorias/')
+      setLoading(true);
+      setError(null);
+      const [resFam, resCat] = await Promise.all([
+        apiFetch('http://localhost:8000/familias/'),
+        apiFetch('http://localhost:8000/categorias/')
       ]);
 
-      if (!resFamilias.ok || !resCategorias.ok) throw new Error('Error al cargar la información.');
-
-      setFamilias(await resFamilias.json());
-      setCategorias(await resCategorias.json());
+      if (resFam.ok && resCat.ok) {
+        const dataFam = await resFam.json();
+        const dataCat = await resCat.json();
+        setFamilias(dataFam || []);
+        setCategorias(dataCat || []);
+      } else {
+        throw new Error('Error al cargar catálogos de categorías');
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -48,288 +40,475 @@ export default function GestorCategorias() {
     }
   };
 
-  // ==========================================
-  // LÓGICA: CATEGORÍAS PRINCIPALES (Familias)
-  // ==========================================
-  const abrirModalFamilia = (familia = null) => {
-    setModalError(null);
-    setFamiliaForm(familia ? { id: familia.id, nombre_familia: familia.nombre_familia } : { id: null, nombre_familia: '' });
-    setModalFamiliaVisible(true);
+  useEffect(() => {
+    cargarDatos();
+  }, []);
+
+  const mostrarExito = (mensaje) => {
+    setSuccessMsg(mensaje);
+    setTimeout(() => setSuccessMsg(null), 3000);
   };
 
-  const cerrarModalFamilia = () => {
-    setModalFamiliaVisible(false);
-  };
-
-  const guardarFamilia = async (e) => {
+  // --- HANDLERS FAMILIAS ---
+  const handleGuardarFamilia = async (e) => {
     e.preventDefault();
-    setIsSubmitting(true);
-    setModalError(null);
-
-    const esEdicion = !!familiaForm.id;
-    const url = esEdicion ? `http://127.0.0.1:8000/familias/${familiaForm.id}` : `http://127.0.0.1:8000/familias/`;
-    const payload = esEdicion 
-      ? { nombre_familia: familiaForm.nombre_familia }
-      : { id: `FAM-${Date.now()}`, nombre_familia: familiaForm.nombre_familia };
-
     try {
-      const res = await apiFetch(url, { method: esEdicion ? 'PUT' : 'POST', body: JSON.stringify(payload) });
-      if (!res.ok) throw new Error((await res.json()).detail || 'Error al guardar');
-      await cargarDatos();
-      cerrarModalFamilia();
-    } catch (err) { setModalError(err.message); } 
-    finally { setIsSubmitting(false); }
-  };
+      setError(null);
+      const isEditing = modo === 'EDITAR_FAMILIA';
+      const url = isEditing
+        ? `http://localhost:8000/familias/${itemAEditar.id}`
+        : 'http://localhost:8000/familias/';
+      const method = isEditing ? 'PUT' : 'POST';
 
-  const eliminarFamilia = async () => {
-    if (!window.confirm(`¿Eliminar la categoría "${familiaForm.nombre_familia}"?`)) return;
-    setIsSubmitting(true);
-    setModalError(null);
-    try {
-      const res = await apiFetch(`http://127.0.0.1:8000/familias/${familiaForm.id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error((await res.json()).detail || 'Error al eliminar');
-      await cargarDatos();
-      cerrarModalFamilia();
-    } catch (err) { setModalError(err.message); } 
-    finally { setIsSubmitting(false); }
-  };
-
-  // ==========================================
-  // LÓGICA: SUBCATEGORÍAS (Categorías)
-  // ==========================================
-  const abrirModalSub = (familiaId, subcategoria = null) => {
-    setModalError(null);
-    if (subcategoria) {
-      setSubForm({
-        id: subcategoria.id,
-        nombre_categoria: subcategoria.nombre_categoria,
-        presupuesto_mensual: subcategoria.presupuesto_mensual || '',
-        icono: subcategoria.icono || '🏷️',
-        familia_id: familiaId
+      const res = await apiFetch(url, {
+        method,
+        body: JSON.stringify(familiaForm)
       });
-    } else {
-      setSubForm({ id: null, nombre_categoria: '', presupuesto_mensual: '', icono: '🏷️', familia_id: familiaId });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.detail || 'Error al guardar la familia');
+      }
+
+      mostrarExito(isEditing ? 'Familia actualizada correctamente' : 'Familia creada exitosamente');
+      setModo('LISTA');
+      cargarDatos();
+    } catch (err) {
+      setError(err.message);
     }
-    setModalSubVisible(true);
   };
 
-  const cerrarModalSub = () => {
-    setModalSubVisible(false);
+  const handleBorrarFamilia = async (fam) => {
+    if (!window.confirm(`¿Borrar la familia "${fam.nombre_familia}"? Se eliminarán o afectarán sus subcategorías.`)) return;
+    try {
+      setError(null);
+      const res = await apiFetch(`http://localhost:8000/familias/${fam.id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.detail || 'No se pudo eliminar la familia. Verifica que no tenga subcategorías en uso.');
+      }
+      mostrarExito('Familia eliminada');
+      cargarDatos();
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
-  const guardarSub = async (e) => {
+  // --- HANDLERS CATEGORÍAS (SUBCATEGORÍAS) ---
+  const handleGuardarCategoria = async (e) => {
     e.preventDefault();
-    setIsSubmitting(true);
-    setModalError(null);
-
-    const esEdicion = !!subForm.id;
-    const url = esEdicion ? `http://127.0.0.1:8000/categorias/${subForm.id}` : `http://127.0.0.1:8000/categorias/`;
-    
-    const payload = {
-      nombre_categoria: subForm.nombre_categoria,
-      presupuesto_mensual: subForm.presupuesto_mensual ? parseFloat(subForm.presupuesto_mensual) : 0,
-      icono: subForm.icono,
-      familia_id: subForm.familia_id
-    };
-
-    // Si es creación, inyectamos el ID generado dinámicamente
-    if (!esEdicion) payload.id = `CAT-${Date.now()}`;
-
     try {
-      const res = await apiFetch(url, { method: esEdicion ? 'PUT' : 'POST', body: JSON.stringify(payload) });
-      if (!res.ok) throw new Error((await res.json()).detail || 'Error al guardar subcategoría');
-      await cargarDatos();
-      cerrarModalSub();
-    } catch (err) { setModalError(err.message); } 
-    finally { setIsSubmitting(false); }
+      setError(null);
+      const isEditing = modo === 'EDITAR_CAT';
+      const url = isEditing
+        ? `http://localhost:8000/categorias/${itemAEditar.id}`
+        : 'http://localhost:8000/categorias/';
+      const method = isEditing ? 'PUT' : 'POST';
+
+      const res = await apiFetch(url, {
+        method,
+        body: JSON.stringify(categoriaForm)
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.detail || 'Error al guardar la subcategoría');
+      }
+
+      mostrarExito(isEditing ? 'Subcategoría actualizada' : 'Subcategoría creada exitosamente');
+      setModo('LISTA');
+      cargarDatos();
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
-  const eliminarSub = async () => {
-    if (!window.confirm(`¿Eliminar la subcategoría "${subForm.nombre_categoria}"?`)) return;
-    setIsSubmitting(true);
-    setModalError(null);
+  const handleBorrarCategoria = async (cat) => {
+    if (!window.confirm(`¿Borrar la subcategoría "${cat.nombre_categoria}"?`)) return;
     try {
-      const res = await apiFetch(`http://127.0.0.1:8000/categorias/${subForm.id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error((await res.json()).detail || 'Error al eliminar');
-      await cargarDatos();
-      cerrarModalSub();
-    } catch (err) { setModalError(err.message); } 
-    finally { setIsSubmitting(false); }
+      setError(null);
+      const res = await apiFetch(`http://localhost:8000/categorias/${cat.id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.detail || 'No se pudo eliminar la subcategoría. Verifica que no tenga transacciones ligadas.');
+      }
+      mostrarExito('Subcategoría eliminada');
+      cargarDatos();
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
+  // Prepara apertura de formularios
+  const abrirCrearFamilia = () => {
+    setFamiliaForm({ nombre_familia: '', tipo: 'GASTO' });
+    setModo('CREAR_FAMILIA');
+  };
 
-  if (loading) return <div className="p-8 text-center text-slate-500">Cargando datos...</div>;
-  if (error) return <div className="p-8 text-center text-red-500">{error}</div>;
+  const abrirEditarFamilia = (fam) => {
+    setItemAEditar(fam);
+    setFamiliaForm({ nombre_familia: fam.nombre_familia, tipo: fam.tipo });
+    setModo('EDITAR_FAMILIA');
+  };
+
+  const abrirCrearCategoria = (familiaIdOpcional = '') => {
+    setCategoriaForm({
+      nombre_categoria: '',
+      familia_id: familiaIdOpcional || (familias[0]?.id || ''),
+      icono: '🏷️'
+    });
+    setModo('CREAR_CAT');
+  };
+
+  const abrirEditarCategoria = (cat) => {
+    setItemAEditar(cat);
+    setCategoriaForm({
+      nombre_categoria: cat.nombre_categoria,
+      familia_id: cat.familia_id,
+      icono: cat.icono || '🏷️'
+    });
+    setModo('EDITAR_CAT');
+  };
+
+  // Emojis sugeridos para selección rápida
+  const emojisSugeridos = ['🏷️', '🛒', '🍔', '🚗', '🏠', '💡', '💊', '🎮', '✈️', '🎓', '💼', '💰', '🎁', '🏦', '🐕'];
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 relative">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-slate-800">Gestor de Categorías</h2>
-        <button 
-          onClick={() => abrirModalFamilia()}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-        >
-          + Nueva Categoría
-        </button>
-      </div>
-
-      <div className="space-y-6">
-        {familias.map((familia) => {
-          const categoriasHijas = categorias.filter(c => c.familia_id === familia.id);
-
-          return (
-            <div key={familia.id} className="border border-slate-200 rounded-lg p-5 bg-white shadow-sm">
-              <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-2">
-                <h3 className="text-lg font-black text-slate-700">{familia.nombre_familia}</h3>
-                <div className="space-x-3">
-                  <button 
-                    onClick={() => abrirModalFamilia(familia)}
-                    className="text-sm text-slate-400 hover:text-blue-600 font-medium transition-colors"
-                  >
-                    Editar Categoría
-                  </button>
-                  <button 
-                    onClick={() => abrirModalSub(familia.id)} // 🟢 Abrir modal de Subcategoría
-                    className="text-sm bg-emerald-50 text-emerald-600 hover:bg-emerald-100 px-3 py-1 rounded-md font-medium transition-colors"
-                  >
-                    + Subcategoría
-                  </button>
-                </div>
-              </div>
-
-              {categoriasHijas.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {categoriasHijas.map(categoria => (
-                    <div key={categoria.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-md border border-slate-200 group">
-                      <div className="flex items-center space-x-3">
-                        <span className="text-2xl bg-white w-10 h-10 flex items-center justify-center rounded shadow-sm border border-slate-100">
-                          {categoria.icono}
-                        </span>
-                        <div>
-                          <p className="font-bold text-slate-700 text-sm leading-tight">{categoria.nombre_categoria}</p>
-                          <p className="text-xs text-slate-500 font-medium">Ppto: ${categoria.presupuesto_mensual}</p>
-                        </div>
-                      </div>
-                      <button 
-                        onClick={() => abrirModalSub(familia.id, categoria)} // 🟢 Editar Subcategoría
-                        className="text-xs font-bold text-slate-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity bg-white px-2 py-1 rounded border border-slate-200"
-                      >
-                        Editar
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-slate-400 italic py-2">No hay subcategorías registradas.</p>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* ========================================== */}
-      {/* MODAL 1: CATEGORÍA PRINCIPAL (Familia)     */}
-      {/* ========================================== */}
-      {modalFamiliaVisible && (
-        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-              <h3 className="font-bold text-slate-800">
-                {familiaForm.id ? 'Editar Categoría' : 'Nueva Categoría'}
-              </h3>
-              <button onClick={cerrarModalFamilia} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
-            </div>
-            
-            <form onSubmit={guardarFamilia} className="p-6 space-y-4">
-              {modalError && <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg border border-red-100">{modalError}</div>}
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">Nombre de la Categoría</label>
-                <input
-                  type="text" required autoFocus
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                  placeholder="Ej. Vivienda, Transporte..."
-                  value={familiaForm.nombre_familia}
-                  onChange={(e) => setFamiliaForm({ ...familiaForm, nombre_familia: e.target.value })}
-                />
-              </div>
-              <div className="pt-4 flex justify-between items-center">
-                {familiaForm.id ? (
-                  <button type="button" onClick={eliminarFamilia} disabled={isSubmitting} className="text-sm text-red-500 hover:text-red-700 font-bold disabled:opacity-50">Eliminar</button>
-                ) : <div></div>}
-                <div className="space-x-3">
-                  <button type="button" onClick={cerrarModalFamilia} className="px-4 py-2 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg">Cancelar</button>
-                  <button type="submit" disabled={isSubmitting} className="px-4 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50">
-                    {isSubmitting ? 'Guardando...' : 'Guardar'}
-                  </button>
-                </div>
-              </div>
-            </form>
-          </div>
+    <div className="space-y-5 animate-fade-in pb-10">
+      
+      {/* MENSAJES FEEDBACK */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-600 p-3.5 rounded-xl text-xs font-semibold flex justify-between items-center">
+          <span>⚠️ {error}</span>
+          <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600 font-bold">✕</button>
         </div>
       )}
 
-      {/* ========================================== */}
-      {/* MODAL 2: SUBCATEGORÍA (Categoría)          */}
-      {/* ========================================== */}
-      {modalSubVisible && (
-        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-              <h3 className="font-bold text-slate-800">
-                {subForm.id ? 'Editar Subcategoría' : 'Nueva Subcategoría'}
-              </h3>
-              <button onClick={cerrarModalSub} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
+      {successMsg && (
+        <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 p-3.5 rounded-xl text-xs font-semibold animate-pulse">
+          ✓ {successMsg}
+        </div>
+      )}
+
+      {/* VISTA 1: FORMULARIO CREAR / EDITAR FAMILIA */}
+      {(modo === 'CREAR_FAMILIA' || modo === 'EDITAR_FAMILIA') && (
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm max-w-lg mx-auto">
+          <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
+            <h3 className="text-base font-bold text-slate-800">
+              {modo === 'CREAR_FAMILIA' ? '📁 Nueva Familia de Categorías' : '✏️ Editar Familia'}
+            </h3>
+            <button
+              onClick={() => setModo('LISTA')}
+              className="text-xs text-slate-400 hover:text-slate-600 font-bold px-2 py-1 bg-slate-50 rounded-lg"
+            >
+              Cancelar
+            </button>
+          </div>
+
+          <form onSubmit={handleGuardarFamilia} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1">Nombre de la Familia</label>
+              <input
+                type="text"
+                required
+                placeholder="Ej. Alimentación, Transporte, Servicios..."
+                value={familiaForm.nombre_familia}
+                onChange={(e) => setFamiliaForm({ ...familiaForm, nombre_familia: e.target.value })}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-blue-500"
+              />
             </div>
-            
-            <form onSubmit={guardarSub} className="p-6 space-y-4">
-              {modalError && <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg border border-red-100">{modalError}</div>}
-              
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">Ícono (Emoji)</label>
-                <input
-                  type="text" required maxLength="2"
-                  className="w-16 text-center text-2xl px-2 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
-                  value={subForm.icono}
-                  onChange={(e) => setSubForm({ ...subForm, icono: e.target.value })}
-                />
-                <p className="text-xs text-slate-400 mt-1">Usa la tecla Windows + . (o Ctrl+Cmd+Espacio en Mac)</p>
-              </div>
 
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">Nombre de Subcategoría</label>
-                <input
-                  type="text" required autoFocus
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
-                  placeholder="Ej. Renta, Despensa, Gasolina..."
-                  value={subForm.nombre_categoria}
-                  onChange={(e) => setSubForm({ ...subForm, nombre_categoria: e.target.value })}
-                />
-              </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1">Tipo de Clasificación</label>
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setFamiliaForm({ ...familiaForm, tipo: 'GASTO' })}
+                  className={`py-2 px-3 rounded-xl text-xs font-bold transition-all border ${
+                    familiaForm.tipo === 'GASTO'
+                      ? 'bg-red-50 border-red-300 text-red-700 shadow-sm'
+                      : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
+                  }`}
+                >
+                  🔻 Gasto / Salida
+                </button>
 
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">Presupuesto Mensual Recomendado</label>
-                <input
-                  type="number" step="0.01" min="0"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none font-mono"
-                  placeholder="0.00"
-                  value={subForm.presupuesto_mensual}
-                  onChange={(e) => setSubForm({ ...subForm, presupuesto_mensual: e.target.value })}
-                />
+                <button
+                  type="button"
+                  onClick={() => setFamiliaForm({ ...familiaForm, tipo: 'INGRESO' })}
+                  className={`py-2 px-3 rounded-xl text-xs font-bold transition-all border ${
+                    familiaForm.tipo === 'INGRESO'
+                      ? 'bg-emerald-50 border-emerald-300 text-emerald-700 shadow-sm'
+                      : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
+                  }`}
+                >
+                  🟢 Ingreso / Entrada
+                </button>
               </div>
+            </div>
 
-              <div className="pt-4 flex justify-between items-center">
-                {subForm.id ? (
-                  <button type="button" onClick={eliminarSub} disabled={isSubmitting} className="text-sm text-red-500 hover:text-red-700 font-bold disabled:opacity-50">Eliminar</button>
-                ) : <div></div>}
-                <div className="space-x-3">
-                  <button type="button" onClick={cerrarModalSub} className="px-4 py-2 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg">Cancelar</button>
-                  <button type="submit" disabled={isSubmitting} className="px-4 py-2 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg disabled:opacity-50">
-                    {isSubmitting ? 'Guardando...' : 'Guardar'}
-                  </button>
+            <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setModo('LISTA')}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-500/20 transition-colors"
+              >
+                {modo === 'CREAR_FAMILIA' ? 'Guardar Familia' : 'Actualizar'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* VISTA 2: FORMULARIO CREAR / EDITAR SUBCATEGORÍA */}
+      {(modo === 'CREAR_CAT' || modo === 'EDITAR_CAT') && (
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm max-w-lg mx-auto">
+          <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
+            <h3 className="text-base font-bold text-slate-800">
+              {modo === 'CREAR_CAT' ? '🏷️ Nueva Subcategoría' : '✏️ Editar Subcategoría'}
+            </h3>
+            <button
+              onClick={() => setModo('LISTA')}
+              className="text-xs text-slate-400 hover:text-slate-600 font-bold px-2 py-1 bg-slate-50 rounded-lg"
+            >
+              Cancelar
+            </button>
+          </div>
+
+          <form onSubmit={handleGuardarCategoria} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1">Familia Perteneciente</label>
+              <select
+                required
+                value={categoriaForm.familia_id}
+                onChange={(e) => setCategoriaForm({ ...categoriaForm, familia_id: e.target.value })}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-blue-500"
+              >
+                <option value="" disabled>-- Selecciona una familia --</option>
+                {familias.map((fam) => (
+                  <option key={fam.id} value={fam.id}>
+                    {fam.nombre_familia} ({fam.tipo})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1">Nombre de la Subcategoría</label>
+              <input
+                type="text"
+                required
+                placeholder="Ej. Supermercado, Gasolina, Netflix..."
+                value={categoriaForm.nombre_categoria}
+                onChange={(e) => setCategoriaForm({ ...categoriaForm, nombre_categoria: e.target.value })}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1">Ícono / Emoji</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="text"
+                  required
+                  maxLength={4}
+                  value={categoriaForm.icono}
+                  onChange={(e) => setCategoriaForm({ ...categoriaForm, icono: e.target.value })}
+                  className="w-16 text-center text-xl p-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500"
+                />
+                <div className="flex-1 flex flex-wrap gap-1.5 p-2 bg-slate-50 rounded-xl border border-slate-100 max-h-24 overflow-y-auto">
+                  {emojisSugeridos.map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => setCategoriaForm({ ...categoriaForm, icono: emoji })}
+                      className="w-8 h-8 flex items-center justify-center text-base hover:bg-white rounded-lg transition-colors border border-transparent hover:border-slate-200"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
                 </div>
               </div>
-            </form>
+            </div>
+
+            <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setModo('LISTA')}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-500/20 transition-colors"
+              >
+                {modo === 'CREAR_CAT' ? 'Guardar Subcategoría' : 'Actualizar'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* VISTA PRINCIPAL: MODO LISTA DE CATEGORÍAS ORGANIZADAS POR FAMILIA */}
+      {modo === 'LISTA' && (
+        <div className="space-y-4">
+          
+          {/* BARRA SUPERIOR DE ACCIONES */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div>
+              <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                <span>📁</span> Gestor de Categorías y Familias
+              </h2>
+              <p className="text-xs text-slate-400">Organiza tus ingresos y gastos en catálogos estructurados.</p>
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                onClick={abrirCrearFamilia}
+                className="flex-1 sm:flex-initial px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
+              >
+                <span>➕</span> Familia
+              </button>
+
+              <button
+                onClick={() => abrirCrearCategoria()}
+                disabled={familias.length === 0}
+                className={`flex-1 sm:flex-initial px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shadow-sm ${
+                  familias.length === 0 ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+              >
+                <span>➕</span> Subcategoría
+              </button>
+            </div>
           </div>
+
+          {loading ? (
+            <div className="p-10 text-center text-xs text-slate-400 bg-white rounded-2xl border border-slate-200">
+              Cargando catálogo de categorías...
+            </div>
+          ) : familias.length === 0 ? (
+            <div className="p-10 text-center space-y-3 bg-white rounded-2xl border border-slate-200">
+              <p className="text-sm font-bold text-slate-600">No hay familias registradas</p>
+              <p className="text-xs text-slate-400">Crea primero una Familia (ej. "Alimentación") para poder agregar subcategorías.</p>
+              <button
+                onClick={abrirCrearFamilia}
+                className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-sm"
+              >
+                + Crear Primera Familia
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {familias.map((fam) => {
+                const subcategorias = categorias.filter((c) => c.familia_id === fam.id);
+                const isIngreso = fam.tipo === 'INGRESO';
+
+                return (
+                  <div key={fam.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    
+                    {/* ENCABEZADO DE LA FAMILIA */}
+                    <div className="p-4 bg-slate-50/80 border-b border-slate-100 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md shrink-0 ${
+                          isIngreso ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                        }`}>
+                          {fam.tipo}
+                        </span>
+
+                        <h3 className="text-sm font-bold text-slate-800 truncate">
+                          {fam.nombre_familia}
+                        </h3>
+
+                        <span className="text-[11px] font-semibold text-slate-400 bg-white border border-slate-200 px-2 py-0.5 rounded-full shrink-0">
+                          {subcategorias.length}
+                        </span>
+                      </div>
+
+                      {/* BOTONES DE ACCIÓN DE LA FAMILIA */}
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => abrirCrearCategoria(fam.id)}
+                          title="Añadir subcategoría a esta familia"
+                          className="px-2.5 py-1 text-xs font-bold text-blue-600 hover:bg-blue-50 rounded-lg transition-colors flex items-center gap-1"
+                        >
+                          <span className="text-sm">+</span>
+                          <span className="hidden sm:inline">Subcat</span>
+                        </button>
+
+                        <button
+                          onClick={() => abrirEditarFamilia(fam)}
+                          title="Editar Familia"
+                          className="p-1.5 text-xs text-slate-500 hover:text-slate-800 hover:bg-slate-200/60 rounded-lg transition-colors"
+                        >
+                          ✏️
+                        </button>
+
+                        <button
+                          onClick={() => handleBorrarFamilia(fam)}
+                          title="Borrar Familia"
+                          className="p-1.5 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* LISTA / GRID DE SUBCATEGORÍAS */}
+                    <div className="p-3 bg-white">
+                      {subcategorias.length === 0 ? (
+                        <div className="py-4 text-center">
+                          <p className="text-xs text-slate-400">Sin subcategorías asignadas a esta familia.</p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                          {subcategorias.map((cat) => (
+                            <div
+                              key={cat.id}
+                              className="p-2.5 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:border-slate-300 transition-all flex items-center justify-between gap-2 group"
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="text-lg shrink-0">{cat.icono || '🏷️'}</span>
+                                <span className="text-xs font-bold text-slate-700 truncate">
+                                  {cat.nombre_categoria}
+                                </span>
+                              </div>
+
+                              {/* BOTONES DE ACCIÓN DE LA SUBCATEGORÍA */}
+                              <div className="flex items-center gap-0.5 shrink-0 opacity-90 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  onClick={() => abrirEditarCategoria(cat)}
+                                  title="Editar Subcategoría"
+                                  className="p-1 text-[11px] text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded"
+                                >
+                                  ✏️
+                                </button>
+                                <button
+                                  onClick={() => handleBorrarCategoria(cat)}
+                                  title="Borrar Subcategoría"
+                                  className="p-1 text-[11px] text-red-400 hover:text-red-600 hover:bg-red-50 rounded"
+                                >
+                                  🗑️
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
         </div>
       )}
 
