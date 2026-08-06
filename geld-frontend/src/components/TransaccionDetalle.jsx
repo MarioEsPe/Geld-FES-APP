@@ -1,14 +1,64 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../utils/api';
 
 export default function TransaccionDetalle({ transaccion, onRegresar, onTransaccionEliminada, onEditarClick }) {
   const [eliminando, setEliminando] = useState(false);
   const [error, setError] = useState(null);
 
-  const handleEliminar = async () => {
-    // Confirmación nativa simple antes de ejecutar
-    if (!window.confirm('¿Estás seguro de que deseas eliminar este movimiento de forma permanente?')) return;
+  // Estados para resolver los nombres legibles desde los catálogos
+  const [loadingMetadata, setLoadingMetadata] = useState(true);
+  const [cuentaOrigen, setCuentaOrigen] = useState(null);
+  const [cuentaDestino, setCuentaDestino] = useState(null);
+  const [categoriaInfo, setCategoriaInfo] = useState(null);
+  const [familiaInfo, setFamiliaInfo] = useState(null);
 
+  useEffect(() => {
+    const cargarMetadatos = async () => {
+      try {
+        setLoadingMetadata(true);
+        const [resCuentas, resFamilias, resCategorias] = await Promise.all([
+          apiFetch('http://localhost:8000/cuentas/'),
+          apiFetch('http://localhost:8000/familias/'),
+          apiFetch('http://localhost:8000/categorias/')
+        ]);
+
+        if (resCuentas.ok && resFamilias.ok && resCategorias.ok) {
+          const cuentas = await resCuentas.json();
+          const familias = await resFamilias.json();
+          const categorias = await resCategorias.json();
+
+          // 1. Resolver Cuenta Origen
+          const cOrigen = cuentas.find(c => c.id === transaccion.cuenta_id);
+          setCuentaOrigen(cOrigen);
+
+          // 2. Resolver Cuenta Destino (si aplica)
+          if (transaccion.cuenta_destino_id) {
+            const cDestino = cuentas.find(c => c.id === transaccion.cuenta_destino_id);
+            setCuentaDestino(cDestino);
+          }
+
+          // 3. Resolver Subcategoría y Categoría Principal (Familia)
+          const cat = categorias.find(c => c.id === transaccion.categoria_id);
+          setCategoriaInfo(cat);
+          if (cat) {
+            const fam = familias.find(f => f.id === cat.familia_id);
+            setFamiliaInfo(fam);
+          }
+        }
+      } catch (err) {
+        console.error('Error al resolver metadatos:', err);
+      } finally {
+        setLoadingMetadata(false);
+      }
+    };
+
+    if (transaccion) {
+      cargarMetadatos();
+    }
+  }, [transaccion]);
+
+  const handleEliminar = async () => {
+    if (!window.confirm('¿Estás seguro de que deseas eliminar este movimiento de forma permanente?')) return;
     try {
       setEliminando(true);
       setError(null);
@@ -16,10 +66,7 @@ export default function TransaccionDetalle({ transaccion, onRegresar, onTransacc
       const response = await apiFetch(`http://localhost:8000/transacciones/${transaccion.id}`, {
         method: 'DELETE'
       });
-
       if (!response.ok) throw new Error('No se pudo eliminar el movimiento');
-
-      // Si todo sale bien, notificamos al padre para limpiar el estado y refrescar la lista
       if (onTransaccionEliminada) onTransaccionEliminada();
     } catch (err) {
       setError(err.message);
@@ -91,7 +138,7 @@ export default function TransaccionDetalle({ transaccion, onRegresar, onTransacc
 
         {/* METADATOS SECUNDARIOS */}
         <div className="p-4 divide-y divide-slate-100 text-sm">
-          <div className="py-3 flex justify-between">
+          <div className="py-3 flex justify-between items-center">
             <span className="text-slate-400 font-medium">Fecha:</span>
             <span className="font-bold text-slate-700">
               {new Date(`${transaccion.fecha}T12:00:00`).toLocaleDateString('es-MX', { 
@@ -100,28 +147,67 @@ export default function TransaccionDetalle({ transaccion, onRegresar, onTransacc
             </span>
           </div>
 
-          <div className="py-3 flex justify-between">
-            <span className="text-slate-400 font-medium">Cuenta Origen:</span>
-            <span className="font-mono bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-xs font-bold">
-              {transaccion.cuenta_id}
+          {/* Cuentas con Nombre */}
+          <div className="py-3 flex justify-between items-center">
+            <span className="text-slate-400 font-medium">{isTransferencia ? 'Cuenta Origen:' : 'Cuenta:'}</span>
+            <span className="font-bold text-slate-800">
+              {loadingMetadata ? (
+                <span className="text-xs text-slate-400 font-normal">Cargando...</span>
+              ) : cuentaOrigen ? (
+                <span>{cuentaOrigen.nombre_cuenta} <span className="text-xs font-mono text-slate-400 font-normal">({cuentaOrigen.moneda})</span></span>
+              ) : (
+                <span className="font-mono text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{transaccion.cuenta_id}</span>
+              )}
             </span>
           </div>
 
           {isTransferencia && (
-            <div className="py-3 flex justify-between">
+            <div className="py-3 flex justify-between items-center">
               <span className="text-slate-400 font-medium">Cuenta Destino:</span>
-              <span className="font-mono bg-blue-50 text-blue-600 px-2 py-0.5 rounded text-xs font-bold">
-                {transaccion.cuenta_destino_id}
+              <span className="font-bold text-slate-800">
+                {loadingMetadata ? (
+                  <span className="text-xs text-slate-400 font-normal">Cargando...</span>
+                ) : cuentaDestino ? (
+                  <span>{cuentaDestino.nombre_cuenta} <span className="text-xs font-mono text-slate-400 font-normal">({cuentaDestino.moneda})</span></span>
+                ) : (
+                  <span className="font-mono text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded">{transaccion.cuenta_destino_id}</span>
+                )}
               </span>
             </div>
           )}
 
-          <div className="py-3 flex justify-between">
-            <span className="text-slate-400 font-medium">Categoría ID:</span>
-            <span className="text-slate-700 font-semibold">{transaccion.categoria_id || 'N/A'}</span>
+          {/* Categoría Principal y Subcategoría con Ícono */}
+          <div className="py-3 flex justify-between items-center">
+            <span className="text-slate-400 font-medium">Categoría Principal:</span>
+            <span className="font-bold text-slate-700">
+              {loadingMetadata ? (
+                <span className="text-xs text-slate-400 font-normal">Cargando...</span>
+              ) : familiaInfo ? (
+                familiaInfo.nombre_familia
+              ) : (
+                'N/A'
+              )}
+            </span>
           </div>
-          
-          <div className="py-3 flex justify-between">
+
+          <div className="py-3 flex justify-between items-center">
+            <span className="text-slate-400 font-medium">Subcategoría:</span>
+            <span className="font-bold text-slate-700 flex items-center gap-1.5">
+              {loadingMetadata ? (
+                <span className="text-xs text-slate-400 font-normal">Cargando...</span>
+              ) : categoriaInfo ? (
+                <>
+                  <span className="text-base">{categoriaInfo.icono || '🏷️'}</span>
+                  <span>{categoriaInfo.nombre_categoria}</span>
+                </>
+              ) : (
+                <span className="font-mono text-xs text-slate-500">{transaccion.categoria_id}</span>
+              )}
+            </span>
+          </div>
+
+          {/* Conservamos el ID de la Transacción en fuente mono y discreta */}
+          <div className="py-3 flex justify-between items-center">
             <span className="text-slate-400 font-medium">ID Transacción:</span>
             <span className="text-xs font-mono text-slate-400">{transaccion.id}</span>
           </div>
