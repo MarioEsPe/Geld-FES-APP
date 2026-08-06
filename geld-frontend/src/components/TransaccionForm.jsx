@@ -14,7 +14,7 @@ export default function TransaccionForm({ transaccionAEditar, onGuardadoExitoso,
 
   // --- ESTADO DEL FORMULARIO ---
   const [formData, setFormData] = useState({
-    fecha: new Date().toISOString().split('T')[0], // Fecha de hoy por defecto
+    fecha: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0],
     monto: '',
     tipo: 'CARGO',
     categoria_id: '',

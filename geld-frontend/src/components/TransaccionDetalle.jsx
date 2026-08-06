@@ -94,7 +94,7 @@ export default function TransaccionDetalle({ transaccion, onRegresar, onTransacc
           <div className="py-3 flex justify-between">
             <span className="text-slate-400 font-medium">Fecha:</span>
             <span className="font-bold text-slate-700">
-              {new Date(transaccion.fecha).toLocaleDateString('es-MX', { 
+              {new Date(`${transaccion.fecha}T12:00:00`).toLocaleDateString('es-MX', { 
                 year: 'numeric', month: 'long', day: 'numeric' 
               })}
             </span>

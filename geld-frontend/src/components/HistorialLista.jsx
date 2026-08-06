@@ -75,7 +75,7 @@ export default function HistorialLista({ onTransaccionClick }) { // <-- Prop nue
                       {tx.descripcion || (isTransferencia ? 'Transferencia' : 'Sin concepto')}
                     </p>
                     <p className="text-xs text-slate-400 font-medium">
-                      {new Date(tx.fecha).toLocaleDateString('es-MX', { 
+                      {new Date(`${tx.fecha}T12:00:00`).toLocaleDateString('es-MX', { 
                         year: 'numeric', month: 'short', day: 'numeric' 
                       })}
                     </p>
