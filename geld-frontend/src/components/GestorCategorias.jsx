@@ -239,7 +239,7 @@ export default function GestorCategorias() {
                 required
                 placeholder="Ej. Alimentación, Transporte, Servicios..."
                 value={familiaForm.nombre_familia}
-                onChange={(e) => setFamiliaForm({ ...familiaForm, nombre_familia: e.target.value })}
+                onChange={(e) => setFamiliaForm({ ...familiaForm, nombre_familia: e.target.value.toUpperCase() })}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-blue-500"
               />
             </div>
@@ -313,7 +313,7 @@ export default function GestorCategorias() {
               <select
                 required
                 value={categoriaForm.familia_id}
-                onChange={(e) => setCategoriaForm({ ...categoriaForm, familia_id: e.target.value })}
+                onChange={(e) => setCategoriaForm({ ...categoriaForm, nombre_categoria: e.target.value.toUpperCase() })}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-blue-500"
               >
                 <option value="" disabled>-- Selecciona una familia --</option>
