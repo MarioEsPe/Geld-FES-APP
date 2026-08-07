@@ -26,10 +26,22 @@ export default function GestorCategorias() {
       ]);
 
       if (resFam.ok && resCat.ok) {
-        const dataFam = await resFam.json();
-        const dataCat = await resCat.json();
-        setFamilias(dataFam || []);
-        setCategorias(dataCat || []);
+        let dataFam = await resFam.json();
+        let dataCat = await resCat.json();
+
+        // 1. Aseguramos que existan datos (fallback a un arreglo vacío)
+        dataFam = dataFam || [];
+        dataCat = dataCat || [];
+
+        // 2. ORDENAMIENTO ALFABÉTICO (A-Z) para Familias
+        dataFam.sort((a, b) => a.nombre_familia.localeCompare(b.nombre_familia));
+        
+        // 3. ORDENAMIENTO ALFABÉTICO (A-Z) para Subcategorías
+        dataCat.sort((a, b) => a.nombre_categoria.localeCompare(b.nombre_categoria));
+
+        // 4. Guardamos en el estado
+        setFamilias(dataFam);
+        setCategorias(dataCat);
       } else {
         throw new Error('Error al cargar catálogos de categorías');
       }
