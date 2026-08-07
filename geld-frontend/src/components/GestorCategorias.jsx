@@ -60,9 +60,16 @@ export default function GestorCategorias() {
         : 'http://localhost:8000/familias/';
       const method = isEditing ? 'PUT' : 'POST';
 
+      // Armamos el payload inyectando el ID si es creación nueva
+      const payload = { ...familiaForm };
+      if (!isEditing) {
+        // Genera un ID basado en el nombre (Ej. "ALIMENTACION") máximo 50 caracteres
+        payload.id = payload.nombre_familia.toUpperCase().replace(/\s+/g, '_').substring(0, 50);
+      }
+
       const res = await apiFetch(url, {
         method,
-        body: JSON.stringify(familiaForm)
+        body: JSON.stringify(payload)
       });
 
       if (!res.ok) {
@@ -105,9 +112,16 @@ export default function GestorCategorias() {
         : 'http://localhost:8000/categorias/';
       const method = isEditing ? 'PUT' : 'POST';
 
+      // Armamos el payload inyectando el ID si es creación nueva
+      const payload = { ...categoriaForm };
+      if (!isEditing) {
+        // Genera un ID corto para cumplir con el max_length=20 del backend
+        payload.id = `CAT-${Math.floor(Math.random() * 1000000)}`;
+      }
+
       const res = await apiFetch(url, {
         method,
-        body: JSON.stringify(categoriaForm)
+        body: JSON.stringify(payload)
       });
 
       if (!res.ok) {
@@ -460,39 +474,39 @@ export default function GestorCategorias() {
                       </div>
                     </div>
 
-                    {/* LISTA / GRID DE SUBCATEGORÍAS */}
+                    {/* LISTA DE SUBCATEGORÍAS (1 SOLA COLUMNA) */}
                     <div className="p-3 bg-white">
                       {subcategorias.length === 0 ? (
                         <div className="py-4 text-center">
                           <p className="text-xs text-slate-400">Sin subcategorías asignadas a esta familia.</p>
                         </div>
                       ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                        <div className="flex flex-col gap-2">
                           {subcategorias.map((cat) => (
                             <div
                               key={cat.id}
-                              className="p-2.5 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:border-slate-300 transition-all flex items-center justify-between gap-2 group"
+                              className="p-3 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:border-slate-300 transition-all flex items-center justify-between gap-3 group"
                             >
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span className="text-lg shrink-0">{cat.icono || '🏷️'}</span>
-                                <span className="text-xs font-bold text-slate-700 truncate">
+                              <div className="flex items-center gap-3 min-w-0 flex-1">
+                                <span className="text-xl shrink-0 leading-none">{cat.icono || '🏷️'}</span>
+                                <span className="block text-sm font-bold text-slate-700 leading-snug break-words whitespace-normal min-w-0">
                                   {cat.nombre_categoria}
                                 </span>
                               </div>
 
                               {/* BOTONES DE ACCIÓN DE LA SUBCATEGORÍA */}
-                              <div className="flex items-center gap-0.5 shrink-0 opacity-90 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                              <div className="flex items-center gap-1 shrink-0 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity">
                                 <button
                                   onClick={() => abrirEditarCategoria(cat)}
                                   title="Editar Subcategoría"
-                                  className="p-1 text-[11px] text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded"
+                                  className="p-1.5 text-sm text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-lg transition-colors"
                                 >
                                   ✏️
                                 </button>
                                 <button
                                   onClick={() => handleBorrarCategoria(cat)}
                                   title="Borrar Subcategoría"
-                                  className="p-1 text-[11px] text-red-400 hover:text-red-600 hover:bg-red-50 rounded"
+                                  className="p-1.5 text-sm text-red-400 hover:text-red-700 hover:bg-red-100 rounded-lg transition-colors"
                                 >
                                   🗑️
                                 </button>
