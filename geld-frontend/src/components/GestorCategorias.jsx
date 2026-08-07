@@ -237,6 +237,7 @@ export default function GestorCategorias() {
               <input
                 type="text"
                 required
+                maxLength={40}
                 placeholder="Ej. Alimentación, Transporte, Servicios..."
                 value={familiaForm.nombre_familia}
                 onChange={(e) => setFamiliaForm({ ...familiaForm, nombre_familia: e.target.value.toUpperCase() })}
@@ -313,7 +314,7 @@ export default function GestorCategorias() {
               <select
                 required
                 value={categoriaForm.familia_id}
-                onChange={(e) => setCategoriaForm({ ...categoriaForm, nombre_categoria: e.target.value.toUpperCase() })}
+                onChange={(e) => setCategoriaForm({ ...categoriaForm, familia_id: e.target.value })}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-blue-500"
               >
                 <option value="" disabled>-- Selecciona una familia --</option>
@@ -330,9 +331,10 @@ export default function GestorCategorias() {
               <input
                 type="text"
                 required
+                maxLength={30}
                 placeholder="Ej. Supermercado, Gasolina, Netflix..."
                 value={categoriaForm.nombre_categoria}
-                onChange={(e) => setCategoriaForm({ ...categoriaForm, nombre_categoria: e.target.value })}
+                onChange={(e) => setCategoriaForm({ ...categoriaForm, nombre_categoria: e.target.value.toUpperCase() })}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-blue-500"
               />
             </div>
