@@ -4,6 +4,7 @@ from sqlalchemy import func
 from typing import List, Optional, Dict, Any
 from app.models.domain import Cuenta, Transaccion
 from app.schemas.cuenta import CuentaCreate, CuentaUpdate
+from decimal import Decimal
 
 def create_cuenta(session: Session, cuenta_in: CuentaCreate) -> Cuenta:
     db_cuenta = Cuenta.model_validate(cuenta_in)
@@ -52,25 +53,29 @@ def obtener_resumen_saldos(session: Session) -> List[Dict[str, Any]]:
     resultado = []
     
     for c in cuentas:
+        # 🔑 LA MAGIA MULTIMONEDA: 
+        # Si la cuenta es MXN, el motor SQL multiplica monto * TC. Si es USD, suma los billetes puros.
+        monto_calc = Transaccion.monto * Transaccion.tipo_de_cambio if c.moneda == "MXN" else Transaccion.monto
+        
         cargos = session.exec(
-            select(func.sum(Transaccion.monto))
+            select(func.coalesce(func.sum(monto_calc), Decimal("0.00")))
             .where(Transaccion.cuenta_id == c.id, Transaccion.tipo == "CARGO")
-        ).first() or 0
+        ).one()
         
         abonos = session.exec(
-            select(func.sum(Transaccion.monto))
+            select(func.coalesce(func.sum(monto_calc), Decimal("0.00")))
             .where(Transaccion.cuenta_id == c.id, Transaccion.tipo == "ABONO")
-        ).first() or 0
+        ).one()
         
         transf_out = session.exec(
-            select(func.sum(Transaccion.monto))
+            select(func.coalesce(func.sum(monto_calc), Decimal("0.00")))
             .where(Transaccion.cuenta_id == c.id, Transaccion.tipo == "TRANSFERENCIA")
-        ).first() or 0
+        ).one()
         
         transf_in = session.exec(
-            select(func.sum(Transaccion.monto))
+            select(func.coalesce(func.sum(monto_calc), Decimal("0.00")))
             .where(Transaccion.cuenta_destino_id == c.id, Transaccion.tipo == "TRANSFERENCIA")
-        ).first() or 0
+        ).one()
         
         saldo_actual = c.saldo_inicial + abonos - cargos + transf_in - transf_out
         

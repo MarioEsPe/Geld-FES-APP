@@ -25,31 +25,29 @@ def get_saldo_cuenta_al_vuelo(session: Session, cuenta_id: str) -> Decimal:
         
     saldo_base = cuenta.saldo_inicial
 
-    # Sumatoria de Abonos
+    # 🔑 LÓGICA MULTIMONEDA EXACTA
+    monto_calc = Transaccion.monto * Transaccion.tipo_de_cambio if cuenta.moneda == "MXN" else Transaccion.monto
+
     abonos = session.exec(
-        select(func.coalesce(func.sum(Transaccion.monto), Decimal("0.00")))
+        select(func.coalesce(func.sum(monto_calc), Decimal("0.00")))
         .where(Transaccion.cuenta_id == cuenta_id, Transaccion.tipo == TipoMovimiento.ABONO)
     ).one()
 
-    # Sumatoria de Cargos
     cargos = session.exec(
-        select(func.coalesce(func.sum(Transaccion.monto), Decimal("0.00")))
+        select(func.coalesce(func.sum(monto_calc), Decimal("0.00")))
         .where(Transaccion.cuenta_id == cuenta_id, Transaccion.tipo == TipoMovimiento.CARGO)
     ).one()
 
-    # Sumatoria de Transferencias (Salidas)
     transf_salidas = session.exec(
-        select(func.coalesce(func.sum(Transaccion.monto), Decimal("0.00")))
+        select(func.coalesce(func.sum(monto_calc), Decimal("0.00")))
         .where(Transaccion.cuenta_id == cuenta_id, Transaccion.tipo == TipoMovimiento.TRANSFERENCIA)
     ).one()
 
-    # Sumatoria de Transferencias (Entradas)
     transf_entradas = session.exec(
-        select(func.coalesce(func.sum(Transaccion.monto), Decimal("0.00")))
+        select(func.coalesce(func.sum(monto_calc), Decimal("0.00")))
         .where(Transaccion.cuenta_destino_id == cuenta_id, Transaccion.tipo == TipoMovimiento.TRANSFERENCIA)
     ).one()
 
-    # Ecuación final de balance
     saldo_actual = saldo_base + abonos - cargos - transf_salidas + transf_entradas
     return saldo_actual
 
@@ -99,25 +97,25 @@ def obtener_resumen_mes_actual(session: Session) -> dict:
     primer_dia_mes = hoy.replace(day=1)
     dias_transcurridos = hoy.day
 
-    # 1. Calcular el total de gastos (CARGOS) del mes en curso
+    # 🔑 Para dashboards globales de Patrimonio/Presupuesto, SIEMPRE usamos el equivalente en MXN
+    monto_mxn = Transaccion.monto * Transaccion.tipo_de_cambio
+
     total_gastos = session.exec(
-        select(func.sum(Transaccion.monto))
+        select(func.coalesce(func.sum(monto_mxn), Decimal("0.00")))
         .where(Transaccion.tipo == "CARGO")
         .where(Transaccion.fecha >= primer_dia_mes)
         .where(Transaccion.fecha <= hoy)
-    ).first() or Decimal("0.00")
+    ).one()
 
-    # 2. Calcular promedio diario
     promedio_diario = total_gastos / Decimal(dias_transcurridos) if dias_transcurridos > 0 else Decimal("0.00")
 
-    # 3. Extraer desglose agrupado haciendo JOIN con Categorías y Familias
     statement = (
         select(
             Familia.nombre_familia,
             Categoria.nombre_categoria,
             Categoria.icono,
             Categoria.presupuesto_mensual,
-            func.sum(Transaccion.monto).label("total_gastado")
+            func.sum(monto_mxn).label("total_gastado")
         )
         .join(Categoria, Transaccion.categoria_id == Categoria.id)
         .join(Familia, Categoria.familia_id == Familia.id)
@@ -125,7 +123,7 @@ def obtener_resumen_mes_actual(session: Session) -> dict:
         .where(Transaccion.fecha >= primer_dia_mes)
         .where(Transaccion.fecha <= hoy)
         .group_by(Familia.nombre_familia, Categoria.nombre_categoria, Categoria.icono, Categoria.presupuesto_mensual)
-        .order_by(func.sum(Transaccion.monto).desc()) # Ordenar de mayor a menor gasto
+        .order_by(func.sum(monto_mxn).desc()) 
     )
     
     resultados_db = session.exec(statement).all()
@@ -133,7 +131,6 @@ def obtener_resumen_mes_actual(session: Session) -> dict:
     desglose = []
     for familia_nom, cat_nom, icono, ppto, gastado in resultados_db:
         ppto_dec = ppto or Decimal("0.00")
-        # Calculamos el porcentaje, evitando divisiones por cero
         porcentaje = (gastado / ppto_dec * Decimal("100.00")) if ppto_dec > 0 else Decimal("0.00")
         
         desglose.append({

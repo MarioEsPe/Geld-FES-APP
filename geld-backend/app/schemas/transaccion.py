@@ -10,7 +10,7 @@ from typing import List, Optional
 class TransaccionCreate(BaseModel):
     fecha: date
     # Validamos que el monto siempre sea mayor a 0 (el tipo de movimiento define si suma o resta)
-    monto: Decimal = Field(..., gt=0, decimal_places=2)
+    monto: Decimal = Field(..., ge=0, decimal_places=2)
     tipo: TipoMovimiento
     categoria_id: str = Field(..., max_length=20)
     cuenta_id: str = Field(..., max_length=20)

@@ -63,18 +63,20 @@ def obtener_analitica_gastos(
     usuario_actual = Depends(obtener_usuario_actual)
 ):
     """
-    Agrupa todos los movimientos de tipo CARGO por categoría 
-    y devuelve la suma total por cada una.
+    Agrupa todos los movimientos de tipo CARGO por categoría, 
+    calculando su valor real en moneda base (MXN).
     """
+    monto_mxn = Transaccion.monto * Transaccion.tipo_de_cambio
+    
     consulta = (
         select(
             Categoria.nombre_categoria.label("nombre"),
-            func.sum(Transaccion.monto).label("total")
+            func.sum(monto_mxn).label("total")
         )
         .join(Categoria, Transaccion.categoria_id == Categoria.id)
         .where(Transaccion.tipo == "CARGO")
         .group_by(Categoria.nombre_categoria)
-        .order_by(func.sum(Transaccion.monto).desc())
+        .order_by(func.sum(monto_mxn).desc())
     )
     
     resultados = session.exec(consulta).all()
@@ -152,5 +154,3 @@ def actualizar_transaccion(
     session.refresh(transaccion)
     
     return transaccion
-
-    
