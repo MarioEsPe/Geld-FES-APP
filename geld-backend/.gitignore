@@ -13,3 +13,7 @@ __pycache__/
 
 # Archivos de VS Code
 .vscode/
+
+# Archivos de migracion
+migracion.py
+*.xlsx
