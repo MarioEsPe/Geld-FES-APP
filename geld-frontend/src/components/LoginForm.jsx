@@ -9,13 +9,13 @@ export default function LoginForm() {
     setError('');
 
     try {
-      // 1. Preparamos el cuerpo de la petición (FastAPI espera 'username' y 'password')
       const params = new URLSearchParams();
       params.append('username', formData.username);
       params.append('password', formData.password);
 
-      // 2. Petición al endpoint de login
-      const response = await fetch('http://localhost:8000/auth/login', {
+      const BASE_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
+
+      const response = await fetch(`${BASE_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: params,
@@ -24,11 +24,7 @@ export default function LoginForm() {
       if (!response.ok) throw new Error('Credenciales incorrectas');
 
       const data = await response.json();
-
-      // 3. Guardamos el token en LocalStorage
       localStorage.setItem('geld_token', data.access_token);
-      
-      // 4. Redireccionamos al dashboard
       window.location.href = '/';
     } catch (err) {
       setError(err.message);

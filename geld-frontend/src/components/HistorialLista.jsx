@@ -10,7 +10,7 @@ export default function HistorialLista({ onTransaccionClick }) { // <-- Prop nue
     const fetchHistorial = async () => {
       try {
         setLoading(true);
-        const response = await apiFetch('http://localhost:8000/transacciones/');
+        const response = await apiFetch('/transacciones/');
         if (!response.ok) throw new Error('Error al cargar el historial');
         
         const json = await response.json();

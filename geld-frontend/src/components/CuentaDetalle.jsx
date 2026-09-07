@@ -18,8 +18,8 @@ export default function CuentaDetalle({ cuenta, onRegresar, onCuentaEliminada, o
     try {
       setLoadingTx(true);
       const [resTx, resCat] = await Promise.all([
-        apiFetch(`http://localhost:8000/transacciones/?cuenta_id=${cuenta.id}&limit=100`),
-        apiFetch('http://localhost:8000/categorias/')
+        apiFetch(`/transacciones/?cuenta_id=${cuenta.id}&limit=100`),
+        apiFetch('/categorias/')
       ]);
 
       if (resTx.ok && resCat.ok) {
@@ -48,7 +48,7 @@ export default function CuentaDetalle({ cuenta, onRegresar, onCuentaEliminada, o
       setEliminando(true);
       setError(null);
       
-      const response = await apiFetch(`http://localhost:8000/cuentas/${cuenta.id}`, {
+      const response = await apiFetch(`/cuentas/${cuenta.id}`, {
         method: 'DELETE'
       });
 

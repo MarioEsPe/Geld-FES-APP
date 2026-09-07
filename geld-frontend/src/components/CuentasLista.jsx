@@ -10,7 +10,7 @@ export default function CuentasLista({ onNuevaCuentaClick, onCuentaClick }) {
     const fetchCuentas = async () => {
       try {
         setLoading(true);
-        const response = await apiFetch('http://localhost:8000/cuentas/resumen/saldos');
+        const response = await apiFetch('/cuentas/resumen/saldos');
         if (!response.ok) throw new Error('Error al cargar las cuentas');
         
         const data = await response.json();

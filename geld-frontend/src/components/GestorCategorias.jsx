@@ -21,8 +21,8 @@ export default function GestorCategorias() {
       setLoading(true);
       setError(null);
       const [resFam, resCat] = await Promise.all([
-        apiFetch('http://localhost:8000/familias/'),
-        apiFetch('http://localhost:8000/categorias/')
+        apiFetch('/familias/'),
+        apiFetch('/categorias/')
       ]);
 
       if (resFam.ok && resCat.ok) {
@@ -68,8 +68,8 @@ export default function GestorCategorias() {
       setError(null);
       const isEditing = modo === 'EDITAR_FAMILIA';
       const url = isEditing
-        ? `http://localhost:8000/familias/${itemAEditar.id}`
-        : 'http://localhost:8000/familias/';
+        ? `/familias/${itemAEditar.id}`
+        : '/familias/';
       const method = isEditing ? 'PUT' : 'POST';
 
       // Armamos el payload inyectando el ID si es creación nueva
@@ -101,7 +101,7 @@ export default function GestorCategorias() {
     if (!window.confirm(`¿Borrar la familia "${fam.nombre_familia}"? Se eliminarán o afectarán sus subcategorías.`)) return;
     try {
       setError(null);
-      const res = await apiFetch(`http://localhost:8000/familias/${fam.id}`, { method: 'DELETE' });
+      const res = await apiFetch(`/familias/${fam.id}`, { method: 'DELETE' });
       if (!res.ok) {
         const errData = await res.json();
         throw new Error(errData.detail || 'No se pudo eliminar la familia. Verifica que no tenga subcategorías en uso.');
@@ -120,8 +120,8 @@ export default function GestorCategorias() {
       setError(null);
       const isEditing = modo === 'EDITAR_CAT';
       const url = isEditing
-        ? `http://localhost:8000/categorias/${itemAEditar.id}`
-        : 'http://localhost:8000/categorias/';
+        ? `/categorias/${itemAEditar.id}`
+        : '/categorias/';
       const method = isEditing ? 'PUT' : 'POST';
 
       // Armamos el payload inyectando el ID si es creación nueva
@@ -153,7 +153,7 @@ export default function GestorCategorias() {
     if (!window.confirm(`¿Borrar la subcategoría "${cat.nombre_categoria}"?`)) return;
     try {
       setError(null);
-      const res = await apiFetch(`http://localhost:8000/categorias/${cat.id}`, { method: 'DELETE' });
+      const res = await apiFetch(`/categorias/${cat.id}`, { method: 'DELETE' });
       if (!res.ok) {
         const errData = await res.json();
         throw new Error(errData.detail || 'No se pudo eliminar la subcategoría. Verifica que no tenga transacciones ligadas.');

@@ -15,7 +15,7 @@ export default function GraficaGastos() {
       try {
         setLoading(true);
         // Consultamos tu nuevo endpoint agrupado
-        const response = await apiFetch('http://localhost:8000/transacciones/analitica/gastos');
+        const response = await apiFetch('/transacciones/analitica/gastos');
         if (!response.ok) throw new Error('Error al cargar analítica');
         
         const json = await response.json();

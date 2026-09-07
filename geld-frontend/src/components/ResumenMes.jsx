@@ -9,7 +9,7 @@ export default function ResumenMes() {
   useEffect(() => {
     const cargarResumen = async () => {
       try {
-        const res = await apiFetch('http://127.0.0.1:8000/transacciones/resumen/mes-actual');
+        const res = await apiFetch('/transacciones/resumen/mes-actual');
         if (!res.ok) throw new Error('Error al cargar el resumen del mes');
         const data = await res.json();
         setResumen(data);

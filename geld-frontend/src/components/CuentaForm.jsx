@@ -30,7 +30,7 @@ export default function CuentaForm({ cuentaAEditar, onGuardadoExitoso, onCancela
       // MODO EDICIÓN: Verificación transparente de movimientos usando tu API existente
       const verificarHistorial = async () => {
         try {
-          const response = await apiFetch(`http://localhost:8000/transacciones/?cuenta_id=${cuentaAEditar.id}&limit=1`);
+          const response = await apiFetch(`/transacciones/?cuenta_id=${cuentaAEditar.id}&limit=1`);
           if (response.ok) {
             const result = await response.json();
             // Si total_registros es mayor a 0, la cuenta ya está operando
@@ -48,7 +48,7 @@ export default function CuentaForm({ cuentaAEditar, onGuardadoExitoso, onCancela
       // MODO CREACIÓN: Auto-calcular ID consecutivo por debajo
       const generarIdConsecutivo = async () => {
         try {
-          const response = await apiFetch('http://localhost:8000/cuentas/');
+          const response = await apiFetch('/cuentas/');
           if (response.ok) {
             const cuentasExistentes = await response.json();
             const siguienteNumero = cuentasExistentes.length + 1;
@@ -85,8 +85,8 @@ export default function CuentaForm({ cuentaAEditar, onGuardadoExitoso, onCancela
 
       const isEditing = !!cuentaAEditar;
       const endpoint = isEditing 
-        ? `http://localhost:8000/cuentas/${cuentaAEditar.id}`
-        : 'http://localhost:8000/cuentas/';
+        ? `/cuentas/${cuentaAEditar.id}`
+        : '/cuentas/';
       const httpMethod = isEditing ? 'PUT' : 'POST';
 
       const response = await apiFetch(endpoint, {

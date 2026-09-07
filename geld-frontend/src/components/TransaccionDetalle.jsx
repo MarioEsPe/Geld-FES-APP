@@ -17,9 +17,9 @@ export default function TransaccionDetalle({ transaccion, onRegresar, onTransacc
       try {
         setLoadingMetadata(true);
         const [resCuentas, resFamilias, resCategorias] = await Promise.all([
-          apiFetch('http://localhost:8000/cuentas/'),
-          apiFetch('http://localhost:8000/familias/'),
-          apiFetch('http://localhost:8000/categorias/')
+          apiFetch('/cuentas/'),
+          apiFetch('/familias/'),
+          apiFetch('/categorias/')
         ]);
 
         if (resCuentas.ok && resFamilias.ok && resCategorias.ok) {
@@ -63,7 +63,7 @@ export default function TransaccionDetalle({ transaccion, onRegresar, onTransacc
       setEliminando(true);
       setError(null);
       
-      const response = await apiFetch(`http://localhost:8000/transacciones/${transaccion.id}`, {
+      const response = await apiFetch(`/transacciones/${transaccion.id}`, {
         method: 'DELETE'
       });
       if (!response.ok) throw new Error('No se pudo eliminar el movimiento');

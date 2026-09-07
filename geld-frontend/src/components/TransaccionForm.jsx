@@ -30,9 +30,9 @@ export default function TransaccionForm({ transaccionAEditar, onGuardadoExitoso,
       try {
         setLoadingCatalogos(true);
         const [resCuentas, resFamilias, resCategorias] = await Promise.all([
-          apiFetch('http://127.0.0.1:8000/cuentas/'),
-          apiFetch('http://127.0.0.1:8000/familias/'),
-          apiFetch('http://127.0.0.1:8000/categorias/')
+          apiFetch('/cuentas/'),
+          apiFetch('/familias/'),
+          apiFetch('/categorias/')
         ]);
 
         if (!resCuentas.ok || !resFamilias.ok || !resCategorias.ok) {
@@ -99,8 +99,8 @@ export default function TransaccionForm({ transaccionAEditar, onGuardadoExitoso,
 
     const esEdicion = !!transaccionAEditar;
     const url = esEdicion
-      ? `http://127.0.0.1:8000/transacciones/${transaccionAEditar.id}`
-      : 'http://127.0.0.1:8000/transacciones/';
+      ? `/transacciones/${transaccionAEditar.id}`
+      : '/transacciones/';
     const method = esEdicion ? 'PUT' : 'POST';
 
     // Construcción limpia del payload conforme a los requerimientos de la DB
