@@ -20,7 +20,7 @@ origins = [
     "http://localhost:4321", # Puerto por defecto de Astro
     "http://localhost:3000", # Puerto clásico de React
     "http://localhost:5173", # Puerto de Vite
-    "https://geld-fes-app.vercel.app/login", # URL publica de VERCEL
+    "https://geld-fes-app.vercel.app", # URL publica de VERCEL
 ]
 
 app.add_middleware(
