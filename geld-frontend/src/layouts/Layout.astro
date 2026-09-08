@@ -11,6 +11,17 @@ const { title = "GELD FES" } = Astro.props;
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>{title}</title>
+
+    <!-- Conexión al manifiesto PWA -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Color de la barra de estado del celular (Emerald 500) -->
+    <meta name="theme-color" content="#10b981" />
+
+    <!-- Soporte estricto para iOS (iPhone/iPad) -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
   </head>
   <body class="bg-slate-200 text-slate-900 font-sans antialiased min-h-screen flex justify-center m-0 p-0">
     
