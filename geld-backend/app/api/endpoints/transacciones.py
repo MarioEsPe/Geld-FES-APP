@@ -1,11 +1,15 @@
 # app/api/endpoints/transacciones.py
 from datetime import date
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlmodel import Session
 from decimal import Decimal
 from typing import Dict
 from sqlalchemy import select, func
+import google.generativeai as genai
+import PyPDF2
+import json
+
 
 from app.db.database import get_session
 from app.schemas.transaccion import TransaccionCreate, TransaccionRead, PaginatedTransacciones, GastoPorCategoria, TransaccionUpdate, ResumenMesActual
@@ -14,6 +18,7 @@ from app.models.domain import TipoMovimiento
 
 from app.api.deps import obtener_usuario_actual
 from app.models.domain import Usuario, Transaccion, Categoria
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -29,6 +34,35 @@ def registrar_transaccion(
     """
     # Nota: Si el schema falla (ej. falta cuenta destino), FastAPI devuelve error automático antes de llegar aquí.
     return crud_transaccion.create_transaccion(session=session, transaccion_in=transaccion)
+
+# Configuramos la llave directamente desde el entorno
+genai.configure(api_key=settings.GEMINI_API_KEY)
+
+@router.post("/extraer-pdf")
+async def extraer_datos_pdf(file: UploadFile = File(...)):
+    # 1. Extraer texto del PDF
+    lector = PyPDF2.PdfReader(file.file)
+    texto_crudo = "".join([pagina.extract_text() for pagina in lector.pages])
+
+    # 2. El Prompt Sistémico (Usando el modelo universal)
+    modelo = genai.GenerativeModel('gemini-3.5-flash')
+    prompt = f'''
+    Actúa como un analista financiero. Analiza el siguiente texto de un estado de cuenta.
+    Extrae todas las transacciones y devuelve EXCLUSIVAMENTE un arreglo en formato JSON válido.
+    Cada transacción debe tener esta estructura exacta:
+    {{"fecha": "YYYY-MM-DD", "monto": 0.00 (siempre positivo), "tipo": "CARGO" o "ABONO", "descripcion": "Concepto del movimiento"}}
+    No incluyas texto adicional, ni saludos, ni formato Markdown (```json). Solo devuelve el JSON puro.
+    
+    Texto del banco: {texto_crudo}
+    '''
+
+    # 3. Procesamiento con IA
+    respuesta = modelo.generate_content(prompt)
+    
+    # 4. Limpiamos la respuesta y la convertimos en un objeto de Python
+    texto_limpio = respuesta.text.strip().removeprefix("```json").removesuffix("```").strip()
+    
+    return json.loads(texto_limpio)
 
 @router.get("/cuenta/{cuenta_id}/saldo", response_model=Dict[str, Decimal])
 def obtener_saldo_actual(

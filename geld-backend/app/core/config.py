@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     VERSION: str
     ENVIRONMENT: str
     DATABASE_URL: str
+    GEMINI_API_KEY: str
     
     # Nuevas variables
     SECRET_KEY: str
