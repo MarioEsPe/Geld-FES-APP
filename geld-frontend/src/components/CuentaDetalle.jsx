@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../utils/api';
 import TransaccionDetalle from './TransaccionDetalle';
 
-export default function CuentaDetalle({ cuenta, onRegresar, onCuentaEliminada, onEditarClick }) {
+export default function CuentaDetalle({ cuenta, onRegresar, onCuentaEliminada, onEditarClick, onEditarTransaccion }) {
   const [eliminando, setEliminando] = useState(false);
   const [error, setError] = useState(null);
 
@@ -82,7 +82,9 @@ export default function CuentaDetalle({ cuenta, onRegresar, onCuentaEliminada, o
           cargarTransaccionesYCategorias();
         }}
         onEditarClick={() => {
-          setTxSeleccionada(null);
+          // ✨ NUEVO: Le enviamos la transacción al Dashboard y cerramos esta vista
+          onEditarTransaccion(txSeleccionada);
+          setTxSeleccionada(null); 
         }}
       />
     );

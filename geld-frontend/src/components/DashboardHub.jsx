@@ -122,10 +122,11 @@ export default function DashboardHub() {
               transaccionAEditar={transaccionActiva} 
               onGuardadoExitoso={() => {
                 setTransaccionActiva(null); 
-                setVistaActiva('historial'); 
+                setVistaActiva(cuentaActiva ? 'detalleCuenta' : 'historial');
               }}
               onCancelar={() => {
-                setVistaActiva('historial'); 
+                setTransaccionActiva(null);
+                setVistaActiva(cuentaActiva ? 'detalleCuenta' : 'historial');
               }}
             />
           </div>
@@ -207,6 +208,10 @@ export default function DashboardHub() {
             }}
             onEditarClick={() => {
               setVistaActiva('nuevaCuenta'); 
+            }}
+            onEditarTransaccion={(tx) => {
+              setTransaccionActiva(tx);
+              setVistaActiva('nueva');
             }}
           />
         )}
