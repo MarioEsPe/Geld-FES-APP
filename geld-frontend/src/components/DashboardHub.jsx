@@ -9,6 +9,7 @@ import CuentaForm from './CuentaForm';
 import CuentaDetalle from './CuentaDetalle';
 import GestorCategorias from './GestorCategorias';
 import ResumenMes from './ResumenMes';
+import ImportadorMasivo from './ImportadorMasivo';
 
 export default function DashboardHub() {
   const [vistaActiva, setVistaActiva] = useState('resumen');
@@ -36,6 +37,21 @@ export default function DashboardHub() {
               Operativo
             </span>
             
+            {/* BOTÓN: IMPORTADOR MASIVO PDF */}
+            <button
+              onClick={() => {
+                setTransaccionActiva(null);
+                setVistaActiva('importador');
+              }}
+              className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-colors ml-2 shadow-sm hidden sm:inline-block ${
+                vistaActiva === 'importador'
+                  ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              📄 Importar PDF
+            </button>
+
             {/* 🟢 MODIFICACIÓN B: Botón de Categorías en la parte superior */}
             <button
               onClick={() => {
@@ -69,7 +85,7 @@ export default function DashboardHub() {
       <main className="flex-1 overflow-y-auto px-4 pt-6 pb-24">
         
         {vistaActiva === 'resumen' && (
-          <div className="space-y-4">
+          <div className="space-y-4 max-w-md mx-auto">
             
             {/* NUEVO TABLERO DE CONTROL MENSUAL */}
             <ResumenMes />
@@ -92,7 +108,7 @@ export default function DashboardHub() {
         )}
 
         {vistaActiva === 'nueva' && (
-          <div className="space-y-2">
+          <div className="space-y-2 max-w-md mx-auto">
             <button 
               onClick={() => {
                 setVistaActiva(transaccionActiva ? 'historial' : 'resumen');
@@ -116,7 +132,7 @@ export default function DashboardHub() {
         )}
 
         {vistaActiva === 'historial' && (
-          <div className="space-y-2 relative">
+          <div className="space-y-2 relative max-w-md mx-auto">
             <button 
               onClick={() => setVistaActiva('resumen')}
               className="text-xs text-slate-500 font-medium flex items-center gap-1 hover:text-slate-800 transition-colors mb-2"
@@ -221,6 +237,21 @@ export default function DashboardHub() {
             <GestorCategorias />
           </div>
         )}
+
+        {/* VISTA 6: IMPORTADOR MASIVO PDF */}
+        {vistaActiva === 'importador' && (
+          <div className="space-y-2 animate-fade-in w-full max-w-5xl mx-auto">
+            <button
+              onClick={() => setVistaActiva('resumen')}
+              className="text-xs text-slate-500 font-medium flex items-center gap-1 hover:text-slate-800 transition-colors mb-4"
+            >
+              ← Volver al Resumen
+            </button>
+    
+           {/* Inyectamos el componente */}
+            <ImportadorMasivo />
+          </div>
+        )} 
 
       </main>
 
