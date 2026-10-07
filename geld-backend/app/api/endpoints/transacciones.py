@@ -45,7 +45,7 @@ async def extraer_datos_pdf(file: UploadFile = File(...)):
     texto_crudo = "".join([pagina.extract_text() for pagina in lector.pages])
 
     # 2. El Prompt Sistémico (Usando el modelo universal)
-    modelo = genai.GenerativeModel('gemini-3.5-flash')
+    modelo = genai.GenerativeModel('gemini-3.8-flash')
     prompt = f'''
     Actúa como un analista financiero. Analiza el siguiente texto de un estado de cuenta.
     Extrae todas las transacciones y devuelve EXCLUSIVAMENTE un arreglo en formato JSON válido.
