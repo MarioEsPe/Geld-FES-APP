@@ -1,4 +1,5 @@
 # app/models/domain.py
+
 from sqlmodel import SQLModel, Field, Relationship
 from typing import Optional, List
 from datetime import date
@@ -19,6 +20,7 @@ class Familia(SQLModel, table=True):
     
     id: str = Field(primary_key=True, max_length=50)
     nombre_familia: str = Field(unique=True, index=True, max_length=100)
+    usuario_id: UUID = Field(foreign_key="usuarios.id") # <-- NUEVO: Dueño de la familia
     
     # Relación inversa
     categorias: List["Categoria"] = Relationship(back_populates="familia")
@@ -32,6 +34,7 @@ class Categoria(SQLModel, table=True):
     presupuesto_mensual: Decimal = Field(default=Decimal("0.00"), max_digits=12, decimal_places=2)
     icono: Optional[str] = Field(default=None, max_length=50)
     familia_id: str = Field(foreign_key="familias.id")
+    usuario_id: UUID = Field(foreign_key="usuarios.id") # <-- NUEVO: Dueño de la subcategoría
     
     # Relaciones
     familia: Familia = Relationship(back_populates="categorias")
@@ -46,13 +49,13 @@ class Cuenta(SQLModel, table=True):
     saldo_inicial: Decimal = Field(default=Decimal("0.00"), max_digits=15, decimal_places=2)
     moneda: str = Field(default="MXN", max_length=3)
     tipo_cuenta: str = Field(max_length=50)
+    usuario_id: UUID = Field(foreign_key="usuarios.id") # <-- NUEVO: Dueño de la cuenta
     
-    # Relaciones (Transacciones donde esta cuenta es origen)
+    # Relaciones
     transacciones_origen: List["Transaccion"] = Relationship(
         back_populates="cuenta_origen",
         sa_relationship_kwargs={"foreign_keys": "Transaccion.cuenta_id"}
     )
-    # Relaciones (Transacciones donde esta cuenta es destino)
     transacciones_destino: List["Transaccion"] = Relationship(
         back_populates="cuenta_destino",
         sa_relationship_kwargs={"foreign_keys": "Transaccion.cuenta_destino_id"}
@@ -71,6 +74,7 @@ class Transaccion(SQLModel, table=True):
     cuenta_destino_id: Optional[str] = Field(default=None, foreign_key="cuentas.id")
     tipo_de_cambio: Decimal = Field(default=Decimal("1.0000"), max_digits=10, decimal_places=4)
     descripcion: Optional[str] = None
+    usuario_id: UUID = Field(foreign_key="usuarios.id") # <-- NUEVO: Dueño del movimiento
     
     # Relaciones
     categoria: Categoria = Relationship(back_populates="transacciones")
@@ -89,4 +93,4 @@ class Usuario(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     email: str = Field(unique=True, index=True, max_length=255)
     hashed_password: str = Field(..., description="Contraseña encriptada con bcrypt")
-    is_active: bool = Field(default=True)    
+    is_active: bool = Field(default=True)   
