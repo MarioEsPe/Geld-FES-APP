@@ -26,6 +26,15 @@ const { title = "GELD FES" } = Astro.props;
   <body class="bg-slate-200 text-slate-900 font-sans antialiased min-h-screen flex justify-center m-0 p-0">
     
     <div class="w-full max-w-md md:max-w-5xl bg-slate-50 min-h-screen shadow-2xl relative flex flex-col overflow-hidden">
+      <!-- 
+        El script detecta la variable pública en Astro y la expone al cliente. 
+        Importamos el Provider dinámicamente y envolvemos tu slot.
+      -->
+      <script>
+        window.env = {
+          GOOGLE_CLIENT_ID: import.meta.env.PUBLIC_GOOGLE_CLIENT_ID
+        };
+      </script>
       <slot />
     </div>
 
