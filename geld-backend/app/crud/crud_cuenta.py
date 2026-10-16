@@ -5,76 +5,81 @@ from typing import List, Optional, Dict, Any
 from app.models.domain import Cuenta, Transaccion
 from app.schemas.cuenta import CuentaCreate, CuentaUpdate
 from decimal import Decimal
+from uuid import UUID
 
-def create_cuenta(session: Session, cuenta_in: CuentaCreate) -> Cuenta:
-    db_cuenta = Cuenta.model_validate(cuenta_in)
+def create_cuenta(session: Session, cuenta_in: CuentaCreate, usuario_id: UUID) -> Cuenta:
+    # 1. Extraemos todos los datos del esquema (ej. nombre, saldo_inicial, moneda)
+    datos_dict = cuenta_in.model_dump()
+    
+    # 2. Le inyectamos el ID de tu usuario antes de construir el modelo
+    datos_dict["usuario_id"] = usuario_id
+    
+    # 3. Ahora sí, construimos la Cuenta completa (Pydantic validará todo sin chistar)
+    db_cuenta = Cuenta(**datos_dict)
+    
+    # 4. Guardamos en PostgreSQL
     session.add(db_cuenta)
     session.commit()
     session.refresh(db_cuenta)
     return db_cuenta
 
-def get_cuentas(session: Session, skip: int = 0, limit: int = 100) -> List[Cuenta]:
-    statement = select(Cuenta).offset(skip).limit(limit)
+def get_cuentas(session: Session, usuario_id: UUID, skip: int = 0, limit: int = 100) -> List[Cuenta]:
+    # 🔒 Filtro de aislamiento
+    statement = select(Cuenta).where(Cuenta.usuario_id == usuario_id).offset(skip).limit(limit)
     return session.exec(statement).all()
 
-def get_cuenta_por_id(session: Session, cuenta_id: str) -> Optional[Cuenta]:
-    """Busca una cuenta específica por su ID único."""
-    return session.get(Cuenta, cuenta_id)
+def get_cuenta_por_id(session: Session, cuenta_id: str, usuario_id: UUID) -> Optional[Cuenta]:
+    # 🔒 Buscamos solo si pertenece al usuario activo
+    return session.exec(select(Cuenta).where(Cuenta.id == cuenta_id, Cuenta.usuario_id == usuario_id)).first()
 
-def cuenta_tiene_transacciones(session: Session, cuenta_id: str) -> bool:
-    """Revisa si una cuenta tiene transacciones asociadas (origen o destino)."""
+def cuenta_tiene_transacciones(session: Session, cuenta_id: str, usuario_id: UUID) -> bool:
     movimiento_existente = session.exec(
         select(Transaccion).where(
-            (Transaccion.cuenta_id == cuenta_id) | 
-            (Transaccion.cuenta_destino_id == cuenta_id)
+            (Transaccion.usuario_id == usuario_id) &
+            ((Transaccion.cuenta_id == cuenta_id) | (Transaccion.cuenta_destino_id == cuenta_id))
         )
     ).first()
     return movimiento_existente is not None
 
 def update_cuenta(session: Session, db_cuenta: Cuenta, cuenta_in: CuentaUpdate) -> Cuenta:
-    """Aplica los cambios validados a un objeto cuenta existente."""
     datos_dict = cuenta_in.model_dump(exclude_unset=True)
     for key, value in datos_dict.items():
         setattr(db_cuenta, key, value)
-        
     session.add(db_cuenta)
     session.commit()
     session.refresh(db_cuenta)
     return db_cuenta
 
 def delete_cuenta(session: Session, db_cuenta: Cuenta) -> None:
-    """Elimina físicamente el registro de la cuenta de la base de datos."""
     session.delete(db_cuenta)
     session.commit()
 
-def obtener_resumen_saldos(session: Session) -> List[Dict[str, Any]]:
-    """Mueve la lógica matemática y de agregación del resumen de saldos al CRUD."""
-    cuentas = session.exec(select(Cuenta)).all()
+def obtener_resumen_saldos(session: Session, usuario_id: UUID) -> List[Dict[str, Any]]:
+    # 🔒 Cuentas exclusivas del usuario
+    cuentas = session.exec(select(Cuenta).where(Cuenta.usuario_id == usuario_id)).all()
     resultado = []
     
     for c in cuentas:
-        # 🔑 LA MAGIA MULTIMONEDA: 
-        # Si la cuenta es MXN, el motor SQL multiplica monto * TC. Si es USD, suma los billetes puros.
         monto_calc = Transaccion.monto * Transaccion.tipo_de_cambio if c.moneda == "MXN" else Transaccion.monto
         
         cargos = session.exec(
             select(func.coalesce(func.sum(monto_calc), Decimal("0.00")))
-            .where(Transaccion.cuenta_id == c.id, Transaccion.tipo == "CARGO")
+            .where(Transaccion.cuenta_id == c.id, Transaccion.tipo == "CARGO", Transaccion.usuario_id == usuario_id)
         ).one()
         
         abonos = session.exec(
             select(func.coalesce(func.sum(monto_calc), Decimal("0.00")))
-            .where(Transaccion.cuenta_id == c.id, Transaccion.tipo == "ABONO")
+            .where(Transaccion.cuenta_id == c.id, Transaccion.tipo == "ABONO", Transaccion.usuario_id == usuario_id)
         ).one()
         
         transf_out = session.exec(
             select(func.coalesce(func.sum(monto_calc), Decimal("0.00")))
-            .where(Transaccion.cuenta_id == c.id, Transaccion.tipo == "TRANSFERENCIA")
+            .where(Transaccion.cuenta_id == c.id, Transaccion.tipo == "TRANSFERENCIA", Transaccion.usuario_id == usuario_id)
         ).one()
         
         transf_in = session.exec(
             select(func.coalesce(func.sum(monto_calc), Decimal("0.00")))
-            .where(Transaccion.cuenta_destino_id == c.id, Transaccion.tipo == "TRANSFERENCIA")
+            .where(Transaccion.cuenta_destino_id == c.id, Transaccion.tipo == "TRANSFERENCIA", Transaccion.usuario_id == usuario_id)
         ).one()
         
         saldo_actual = c.saldo_inicial + abonos - cargos + transf_in - transf_out
