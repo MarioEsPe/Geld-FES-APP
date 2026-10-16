@@ -11,6 +11,10 @@ class Settings(BaseSettings):
     # Nuevas variables
     SECRET_KEY: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    
+    # --- NUEVAS VARIABLES OAUTH2 ---
+    GOOGLE_CLIENT_ID: str
+    GOOGLE_CLIENT_SECRET: str
 
     # Le indicamos a Pydantic que lea el archivo .env
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
