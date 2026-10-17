@@ -2,6 +2,9 @@
 import '../styles/global.css';
 
 const { title = "GELD FES" } = Astro.props;
+
+// 1. Leemos la variable de entorno de forma segura en el servidor de Astro
+const googleClientId = import.meta.env.PUBLIC_GOOGLE_CLIENT_ID;
 ---
 
 <!doctype html>
@@ -18,7 +21,8 @@ const { title = "GELD FES" } = Astro.props;
     <!-- Color de la barra de estado del celular (Emerald 500) -->
     <meta name="theme-color" content="#10b981" />
 
-    <!-- Soporte estricto para iOS (iPhone/iPad) -->
+    <!-- Soporte PWA moderno y clásico para iOS/Android -->
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
@@ -26,13 +30,10 @@ const { title = "GELD FES" } = Astro.props;
   <body class="bg-slate-200 text-slate-900 font-sans antialiased min-h-screen flex justify-center m-0 p-0">
     
     <div class="w-full max-w-md md:max-w-5xl bg-slate-50 min-h-screen shadow-2xl relative flex flex-col overflow-hidden">
-      <!-- 
-        El script detecta la variable pública en Astro y la expone al cliente. 
-        Importamos el Provider dinámicamente y envolvemos tu slot.
-      -->
-      <script>
+      <!-- 2. Inyectamos la variable al navegador limpiamente con define:vars -->
+      <script define:vars={{ googleClientId }}>
         window.env = {
-          GOOGLE_CLIENT_ID: import.meta.env.PUBLIC_GOOGLE_CLIENT_ID
+          GOOGLE_CLIENT_ID: googleClientId
         };
       </script>
       <slot />
