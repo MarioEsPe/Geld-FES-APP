@@ -4,11 +4,8 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import Session, select
 from pydantic import BaseModel, EmailStr
 import secrets
+import requests  # <-- Importación para hacer la consulta a Google
 
-# Librerías de Google
-from google.oauth2 import id_token
-from google.auth.transport import requests as google_requests
-    
 from app.db.database import get_session
 from app.models.domain import Usuario
 from app.core.security import verificar_password, obtener_password_hash, crear_token_acceso
@@ -21,7 +18,7 @@ class UsuarioCreate(BaseModel):
     password: str
 
 class TokenGoogle(BaseModel):
-    credential: str
+    credential: str  # Aquí recibiremos el access_token del celular
 
 @router.post("/registrar", status_code=201)
 def registrar_admin(usuario_in: UsuarioCreate, session: Session = Depends(get_session)):
@@ -40,7 +37,7 @@ def registrar_admin(usuario_in: UsuarioCreate, session: Session = Depends(get_se
 
 @router.post("/login")
 def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(get_session)):
-    """Valida credenciales clásicas y devuelve el JWT."""
+    """Valida credenciales clásicas y devuelve el JWT interno."""
     usuario = session.exec(select(Usuario).where(Usuario.email == form_data.username)).first()
     
     if not usuario or not verificar_password(form_data.password, usuario.hashed_password):
@@ -55,25 +52,28 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Session = D
 
 @router.post("/google")
 def login_google(token_data: TokenGoogle, session: Session = Depends(get_session)):
-    """Recibe el token de Google, lo valida y genera sesión en GELD."""
+    """Recibe el access_token del PWA móvil, lo valida con Google y genera sesión en GELD."""
     try:
-        # 1. Verificamos la firma criptográfica con los servidores de Google
-        id_info = id_token.verify_oauth2_token(
-            token_data.credential, 
-            google_requests.Request(), 
-            settings.GOOGLE_CLIENT_ID
+        # 1. Validamos el access_token llamando al endpoint oficial de Google UserInfo
+        google_response = requests.get(
+            'https://www.googleapis.com/oauth2/v3/userinfo',
+            headers={'Authorization': f'Bearer {token_data.credential}'}
         )
         
-        email = id_info.get("email")
+        if not google_response.ok:
+            raise ValueError("Token de Google rechazado por el servidor")
+            
+        user_info = google_response.json()
+        email = user_info.get("email")
+        
         if not email:
             raise HTTPException(status_code=400, detail="El token no contiene un email válido")
 
         # 2. Buscamos si el usuario ya existe en nuestra base de datos
         usuario = session.exec(select(Usuario).where(Usuario.email == email)).first()
         
-        # 3. Si es la primera vez que entra, le creamos su bóveda automáticamente
+        # 3. Si es la primera vez que entra, le creamos su bóveda aislada
         if not usuario:
-            # Generamos una contraseña aleatoria irrompible ya que su llave de acceso será su cuenta de Google
             random_password = secrets.token_urlsafe(32)
             usuario = Usuario(
                 email=email,
@@ -83,10 +83,10 @@ def login_google(token_data: TokenGoogle, session: Session = Depends(get_session
             session.commit()
             session.refresh(usuario)
         
-        # 4. Generamos nuestro propio JWT estándar para que la App funcione normal
+        # 4. Generamos nuestro propio JWT estándar de GELD
         access_token = crear_token_acceso(data={"sub": str(usuario.id)})
         
         return {"access_token": access_token, "token_type": "bearer"}
         
-    except ValueError:
+    except Exception as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token de Google inválido o expirado")
