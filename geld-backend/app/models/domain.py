@@ -18,23 +18,22 @@ class TipoMovimiento(str, Enum):
 class Familia(SQLModel, table=True):
     __tablename__ = "familias"
     
-    id: str = Field(primary_key=True, max_length=50)
-    nombre_familia: str = Field(unique=True, index=True, max_length=100)
-    usuario_id: UUID = Field(foreign_key="usuarios.id") # <-- NUEVO: Dueño de la familia
+    id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True, max_length=50)
+    nombre_familia: str = Field(index=True, max_length=100)
+    usuario_id: UUID = Field(foreign_key="usuarios.id")
     
-    # Relación inversa
     categorias: List["Categoria"] = Relationship(back_populates="familia")
 
 
 class Categoria(SQLModel, table=True):
     __tablename__ = "categorias"
     
-    id: str = Field(primary_key=True, max_length=20)
+    id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True, max_length=50)
     nombre_categoria: str = Field(max_length=100)
     presupuesto_mensual: Decimal = Field(default=Decimal("0.00"), max_digits=12, decimal_places=2)
     icono: Optional[str] = Field(default=None, max_length=50)
     familia_id: str = Field(foreign_key="familias.id")
-    usuario_id: UUID = Field(foreign_key="usuarios.id") # <-- NUEVO: Dueño de la subcategoría
+    usuario_id: UUID = Field(foreign_key="usuarios.id")
     
     # Relaciones
     familia: Familia = Relationship(back_populates="categorias")
