@@ -127,8 +127,8 @@ export default function GestorCategorias() {
       // Armamos el payload inyectando el ID si es creación nueva
       const payload = { ...categoriaForm };
       if (!isEditing) {
-        // Genera un identificador único real y seguro para la base de datos
-        payload.id = `CAT-${crypto.randomUUID()}`.substring(0, 50);
+        // Genera un ID corto y aleatorio para cumplir con el max_length=20 del backend
+        payload.id = `CAT-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
       }
 
       const res = await apiFetch(url, {
