@@ -14,7 +14,12 @@ export default function GestorCategorias() {
 
   // Form states
   const [familiaForm, setFamiliaForm] = useState({ nombre_familia: '', tipo: 'GASTO' });
-  const [categoriaForm, setCategoriaForm] = useState({ nombre_categoria: '', familia_id: '', icono: '🏷️' });
+  const [categoriaForm, setCategoriaForm] = useState({ 
+    nombre_categoria: '', 
+    familia_id: '', 
+    icono: '🏷️', 
+    presupuesto_mensual: '' // <-- NUEVO CAMPO
+  });
 
   const cargarDatos = async () => {
     try {
@@ -337,6 +342,23 @@ export default function GestorCategorias() {
                 onChange={(e) => setCategoriaForm({ ...categoriaForm, nombre_categoria: e.target.value.toUpperCase() })}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-blue-500"
               />
+            </div>
+
+            {/* NUEVO BLOQUE: PRESUPUESTO MENSUAL BASE */}
+            <div className="mt-4">
+              <label className="block text-xs font-bold text-slate-600 mb-1">
+                Presupuesto Mensual Base ($)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="Ej. 5000.00"
+                value={categoriaForm.presupuesto_mensual}
+                onChange={(e) => setCategoriaForm({ ...categoriaForm, presupuesto_mensual: e.target.value })}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-blue-500"
+              />
+              <p className="text-[10px] text-slate-400 mt-1">Este monto será tu plantilla por defecto para los reportes mensuales.</p>
             </div>
 
             <div>
