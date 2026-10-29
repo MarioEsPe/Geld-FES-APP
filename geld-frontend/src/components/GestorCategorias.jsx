@@ -75,8 +75,8 @@ export default function GestorCategorias() {
       // Armamos el payload inyectando el ID si es creación nueva
       const payload = { ...familiaForm };
       if (!isEditing) {
-        // Genera un ID basado en el nombre (Ej. "ALIMENTACION") máximo 50 caracteres
-        payload.id = payload.nombre_familia.toUpperCase().replace(/\s+/g, '_').substring(0, 50);
+        // Genera un identificador único real y seguro para la base de datos
+        payload.id = `FAM-${crypto.randomUUID()}`.substring(0, 50);
       }
 
       const res = await apiFetch(url, {
@@ -127,8 +127,8 @@ export default function GestorCategorias() {
       // Armamos el payload inyectando el ID si es creación nueva
       const payload = { ...categoriaForm };
       if (!isEditing) {
-        // Genera un ID corto para cumplir con el max_length=20 del backend
-        payload.id = `CAT-${Math.floor(Math.random() * 1000000)}`;
+        // Genera un identificador único real y seguro para la base de datos
+        payload.id = `CAT-${crypto.randomUUID()}`.substring(0, 50);
       }
 
       const res = await apiFetch(url, {
